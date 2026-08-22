@@ -16,12 +16,45 @@ const app = Fastify({
 
 // FRONTEND_ORIGIN: comma-separated allowlist of browser origins allowed to call the API.
 // Unset (local dev) -> reflect any origin. Set in production -> only listed origins pass CORS.
+// Each entry ALSO accepts Vercel-style deployment aliases of itself:
+//   https://my-app.vercel.app also matches https://my-app-<deploy-hash>.vercel.app
 const frontendOrigins = (process.env.FRONTEND_ORIGIN ?? '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean)
 
-await app.register(cors, { origin: frontendOrigins.length > 0 ? frontendOrigins : true })
+function originAllowed(origin: string | undefined): boolean {
+  if (!origin) return false
+  return frontendOrigins.some((allowed) => {
+    if (origin === allowed) return true
+    try {
+      const originHost = new URL(origin).hostname
+      const allowedHost = new URL(allowed).hostname
+      if (originHost === allowedHost) return true
+      // Vercel-style deployment aliases: <project>-<hash><domain-suffix> derived from <project><domain-suffix>
+      const labels = allowedHost.split('.')
+      if (labels.length < 3) return false
+      const suffix = `.${labels.slice(-2).join('.')}`
+      const base = allowedHost.slice(0, -suffix.length)
+      if (base.length === 0) return false
+      const rest = originHost.slice(base.length)
+      return (
+        originHost.startsWith(`${base}-`) &&
+        originHost.endsWith(suffix) &&
+        /^-[a-z0-9]+\./i.test(rest)
+      )
+    } catch {
+      return false
+    }
+  })
+}
+
+await app.register(cors, {
+  origin:
+    frontendOrigins.length > 0
+      ? (_origin, callback) => callback(null, originAllowed(_origin))
+      : true,
+})
 
 await app.register(apiRoutes, { prefix: '/api' })
 await app.register(simulateRoutes, { prefix: '/api' })

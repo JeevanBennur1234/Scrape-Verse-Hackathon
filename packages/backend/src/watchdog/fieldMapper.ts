@@ -1,0 +1,192 @@
+import type { CollectorKey } from '../collectors/mandi-registry.js'
+
+export interface PriceTickInput {
+  commodity: string
+  market: string
+  modalPrice: number
+  minPrice: number
+  maxPrice: number
+  arrivalQty: number
+  recordedAt: Date
+}
+
+const DEVANAGARI_DIGITS = '०१२३४५६७८९'
+
+function normalizeDigits(input: string): string {
+  let output = ''
+  for (const char of input) {
+    const devanagariIndex = DEVANAGARI_DIGITS.indexOf(char)
+    output += devanagariIndex === -1 ? char : String(devanagariIndex)
+  }
+  return output
+}
+
+const MARATHI_MONTHS: Record<string, number> = {
+  जाने: 1,
+  फेब्रु: 2,
+  मार्च: 3,
+  एप्रि: 4,
+  मे: 5,
+  जून: 6,
+  जुलै: 7,
+  ऑग: 8,
+  सप्टें: 9,
+  ऑक्टो: 10,
+  नोव्हें: 11,
+  डिसें: 12,
+}
+
+function marathiMonthToNumber(token: string): number | undefined {
+  const cleaned = token.replace(/[.,।]/g, '').trim()
+  for (const [prefix, month] of Object.entries(MARATHI_MONTHS)) {
+    if (cleaned.startsWith(prefix) || prefix.startsWith(cleaned)) {
+      return month
+    }
+  }
+  return undefined
+}
+
+function istMidnight(year: number, month: number, day: number): Date {
+  const y = String(year).padStart(4, '0')
+  const m = String(month).padStart(2, '0')
+  const d = String(day).padStart(2, '0')
+  return new Date(`${y}-${m}-${d}T00:00:00+05:30`)
+}
+
+function assertValidDayMonth(day: number, month: number, source: string): void {
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    throw new Error(`Invalid date components in "${source}" (day=${day}, month=${month})`)
+  }
+}
+
+export function parseIndianReportDate(raw: unknown): Date {
+  if (raw instanceof Date) return raw
+  if (typeof raw !== 'string' || raw.trim() === '') {
+    throw new Error('report_date is missing or not a string')
+  }
+  const text = normalizeDigits(raw.trim())
+
+  const isoMatch = text.match(/(\d{4})-(\d{2})-(\d{2})/)
+  if (isoMatch) {
+    const year = Number(isoMatch[1])
+    const month = Number(isoMatch[2])
+    const day = Number(isoMatch[3])
+    assertValidDayMonth(day, month, text)
+    return istMidnight(year, month, day)
+  }
+
+  const dmyMatch = text.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b/)
+  if (dmyMatch) {
+    const day = Number(dmyMatch[1])
+    const month = Number(dmyMatch[2])
+    const year = Number(dmyMatch[3])
+    assertValidDayMonth(day, month, text)
+    return istMidnight(year, month, day)
+  }
+
+  const marathiMatch = text.match(/(\d{1,2})\s*([^\s\d,]+)[.।]?\s*,?\s*(\d{4})/)
+  if (marathiMatch) {
+    const day = Number(marathiMatch[1])
+    const month = marathiMonthToNumber(marathiMatch[2] ?? '')
+    const year = Number(marathiMatch[3])
+    if (month !== undefined) {
+      assertValidDayMonth(day, month, text)
+      return istMidnight(year, month, day)
+    }
+  }
+
+  throw new Error(
+    `Unrecognized report_date format: "${raw}". Expected DD/MM/YYYY, YYYY-MM-DD, or Marathi form like "बाजारभाव - ( सोमवार, 03 ऑग., 2026 )"`,
+  )
+}
+
+function coerceNumber(field: string, value: unknown): number {
+  let candidate = value
+  if (
+    typeof candidate === 'object' &&
+    candidate !== null &&
+    'value' in (candidate as Record<string, unknown>)
+  ) {
+    candidate = (candidate as Record<string, unknown>).value
+  }
+  if (typeof candidate === 'string') {
+    candidate = candidate.replace(/[,\s₹]/g, '')
+  }
+  const parsed = typeof candidate === 'number' ? candidate : Number(candidate)
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Field "${field}" is not a finite number (got: ${JSON.stringify(value)})`)
+  }
+  return parsed
+}
+
+function requireString(field: string, value: unknown): string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`Field "${field}" is missing or empty`)
+  }
+  return value.trim()
+}
+
+// Mumbai Bajarbhav publishes "सरासरी भाव" (average price) and has no true modal-price
+// column. Mapping avg_price -> modalPrice is an INTENTIONAL decision: the average of
+// reported trades is the closest real-world analog the portal offers to Agmarknet's
+// modal (most-traded) price. Do not "fix" this mapping without replacing the data
+// source or adding a real modal field.
+const MUMBAI_MARKET_LABEL = 'Mumbai APMC - Vegetable Market (Vashi)'
+
+export function normalizeMumbaiRow(raw: unknown): PriceTickInput {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new Error('Mumbai row is not an object')
+  }
+  const row = raw as Record<string, unknown>
+  return {
+    commodity: requireString('commodity_name', row.commodity_name),
+    market: MUMBAI_MARKET_LABEL,
+    // See comment above: avg_price is intentionally mapped to modalPrice.
+    modalPrice: coerceNumber('avg_price', row.avg_price),
+    minPrice: coerceNumber('min_price', row.min_price),
+    maxPrice: coerceNumber('max_price', row.max_price),
+    arrivalQty: Math.round(coerceNumber('arrival_qty', row.arrival_qty)),
+    recordedAt: parseIndianReportDate(row.report_date),
+  }
+}
+
+// TODO(msamb): implement this mapper once we observe MSAMB's actual returned field
+// names from its first successful collector run. Do NOT guess field names — wire the
+// rawFields entry in mandi-registry.ts and mirror them here.
+export function normalizeMsambRow(raw: unknown): PriceTickInput {
+  const keys =
+    typeof raw === 'object' && raw !== null ? Object.keys(raw).join(', ') : typeof raw
+  throw new Error(
+    `TODO(msamb): normalizeMsambRow is a stub - MSAMB raw field names are not yet discovered (row keys seen: ${keys})`,
+  )
+}
+
+const MAPPERS: Record<CollectorKey, (raw: unknown) => PriceTickInput> = {
+  mumbai_apmc: normalizeMumbaiRow,
+  msamb: normalizeMsambRow,
+}
+
+export function normalize(collectorKey: CollectorKey, rawRow: unknown): PriceTickInput {
+  const mapper = MAPPERS[collectorKey]
+  if (!mapper) {
+    throw new Error(`No field mapper registered for collector key "${collectorKey}"`)
+  }
+  return mapper(rawRow)
+}
+
+export function expandRows(collectorKey: CollectorKey, rawRecord: unknown): unknown[] {
+  if (
+    collectorKey === 'mumbai_apmc' &&
+    typeof rawRecord === 'object' &&
+    rawRecord !== null &&
+    Array.isArray((rawRecord as Record<string, unknown>).vegetables)
+  ) {
+    const page = rawRecord as Record<string, unknown>
+    const reportDate = page.report_date
+    return (page.vegetables as unknown[]).map((vegetable) => ({
+      ...(typeof vegetable === 'object' && vegetable !== null ? vegetable : {}),
+      report_date: reportDate,
+    }))
+  }
+  return [rawRecord]
+}

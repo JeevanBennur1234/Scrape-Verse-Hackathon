@@ -1,0 +1,44 @@
+{
+  "name": "@mandipulse/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "start": "prisma migrate deploy && node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
+    "zombies": "tsx scripts/check-zombies.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.1.0",
+    "@fastify/sse": "^0.6.0",
+    "@prisma/client": "^6.9.0",
+    "dotenv": "^16.5.0",
+    "execa": "^9.6.0",
+    "fastify": "^5.4.0",
+    "node-cron": "^4.6.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/node": "^22.15.14",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^10.1.5",
+    "globals": "^16.2.0",
+    "prettier": "^3.6.2",
+    "prisma": "^6.9.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.35.1"
+  }
+}

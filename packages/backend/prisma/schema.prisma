@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Collector {
+  id                String      @id @default(cuid())
+  name              String
+  portalUrl         String
+  state             String      @default("IDLE")
+  lastGoodSelectors Json
+  status            String      @default("HEALTHY")
+  priceTicks        PriceTick[]
+  incidents         Incident[]
+
+  @@index([name])
+}
+
+model PriceTick {
+  id          String    @id @default(cuid())
+  collectorId String
+  commodity   String
+  market      String
+  modalPrice  Float
+  minPrice    Float
+  maxPrice    Float
+  arrivalQty  Int
+  recordedAt  DateTime  @default(now())
+  collector   Collector @relation(fields: [collectorId], references: [id], onDelete: Cascade)
+
+  @@index([collectorId, recordedAt])
+  @@index([commodity, market])
+}
+
+model Incident {
+  id            String         @id @default(cuid())
+  collectorId   String
+  type          IncidentType
+  field         String
+  symptom       String
+  affectedRatio Float
+  status        IncidentStatus @default(DETECTED)
+  simulated     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  collector     Collector      @relation(fields: [collectorId], references: [id], onDelete: Cascade)
+  grades        Grade[]
+
+  @@index([collectorId, createdAt])
+  @@index([status])
+}
+
+model Grade {
+  id         String   @id @default(cuid())
+  incidentId String
+  score      Float
+  checks     Json
+  reason     String
+  createdAt  DateTime @default(now())
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+}
+
+enum IncidentType {
+  SCHEMA_DRIFT
+  NULL_SPIKE
+  PRICE_OUTLIER
+}
+
+enum IncidentStatus {
+  DETECTED
+  HEALING
+  GRADED
+  RECOVERED
+  ESCALATED
+}

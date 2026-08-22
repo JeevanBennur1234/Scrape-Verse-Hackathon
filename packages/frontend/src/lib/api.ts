@@ -39,3 +39,69 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
   }
   return response
 }
+
+export type Collector = {
+  id: string
+  name: string
+  portalUrl: string
+  status: string
+  state?: string
+  _count?: { priceTicks: number; incidents: number }
+}
+
+export type PriceRow = {
+  id: string
+  collectorId: string
+  collectorName: string
+  collectorStatus?: string
+  commodity: string
+  market: string
+  modalPrice: number
+  previousModalPrice: number | null
+  minPrice: number
+  maxPrice: number
+  arrivalQty: number
+  recordedAt: string
+}
+
+export type GradeRow = {
+  id: string
+  score: number
+  reason: string
+  checks?: Array<{ name: string; passed: boolean; details?: string }>
+  createdAt: string
+}
+
+export type IncidentRow = {
+  id: string
+  collectorId: string
+  type: string
+  field: string
+  symptom: string
+  affectedRatio: number
+  status: string
+  simulated?: boolean
+  createdAt: string
+  collector?: { name: string }
+  grades: GradeRow[]
+}
+
+export type SseEvent = {
+  id: string
+  type: string
+  timestamp: string
+  payload: Record<string, any>
+}
+
+export function parseSseData(raw: string): SseEvent | null {
+  try {
+    let value: any = JSON.parse(raw)
+    if (typeof value === "string") value = JSON.parse(value)
+    if (!value || typeof value !== "object") return null
+    const event = value as SseEvent
+    if (typeof event.type !== "string") return null
+    return event
+  } catch {
+    return null
+  }
+}

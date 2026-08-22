@@ -1,129 +1,60 @@
-import { useEffect, useMemo, useState } from 'react'
+import type { PriceRow } from "@/lib/api";
+import { formatInr, snapshotLabel } from "@/lib/format";
 
-import { Card, CardContent } from '@/components/ui/card'
-import { apiFetch } from '@/lib/api'
+export function PriceTicker({ prices }: { prices: PriceRow[] }) {
+  const newest = prices[0]?.recordedAt ?? null;
+  const label = snapshotLabel(newest);
 
-interface PriceRow {
-  id: string
-  collectorId: string
-  collectorName: string
-  commodity: string
-  market: string
-  modalPrice: number
-  previousModalPrice: number | null
-  recordedAt: string
-}
-
-const inr = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
-
-export function PriceTicker() {
-  const [prices, setPrices] = useState<PriceRow[]>([])
-
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const response = await apiFetch('/api/prices')
-        if (!response.ok) return
-        const rows = (await response.json()) as PriceRow[]
-        if (!cancelled) setPrices(rows)
-      } catch {
-        // keep previous data
-      }
-    }
-    void load()
-    const interval = setInterval(() => void load(), 30_000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [])
-
-  const newestRecordedAt = useMemo(() => {
-    if (prices.length === 0) return null
-    let maxDate = new Date(0)
-    for (const p of prices) {
-      const d = new Date(p.recordedAt)
-      if (d > maxDate) {
-        maxDate = d
-      }
-    }
-    return maxDate
-  }, [prices])
-
-  const tickerLabel = useMemo(() => {
-    if (!newestRecordedAt) return 'LIVE'
-    const diffMs = Date.now() - newestRecordedAt.getTime()
-    const diffHours = diffMs / (1000 * 60 * 60)
-    if (diffHours > 6) {
-      const day = newestRecordedAt.getDate()
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-      const month = months[newestRecordedAt.getMonth()]
-      return `SNAPSHOT · ${day} ${month}`
-    }
-    return 'LIVE'
-  }, [newestRecordedAt])
-
-  const items = useMemo(
-    () =>
-      prices.map((price) => {
-        const delta =
-          price.previousModalPrice === null ? null : price.modalPrice - price.previousModalPrice
-        return { price, delta }
-      }),
-    [prices],
-  )
-
-  if (items.length === 0)
+  if (prices.length === 0) {
     return (
-      <Card className="overflow-hidden rounded-none border-x-0 border-t-0">
-        <CardContent className="flex items-center py-2">
-          <span className="mr-3 shrink-0 border-r border-border pr-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {tickerLabel}
+      <div className="border-b border-border">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
+          <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            {label}
           </span>
-          <span className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-degraded" />
-            No ticks yet — waiting for first scrape
-          </span>
-        </CardContent>
-      </Card>
-    )
+          <span className="text-sm text-muted-foreground">Waiting for the first scrape.</span>
+        </div>
+      </div>
+    );
+  }
 
-  const strip = [...items, ...items]
+  const strip = [...prices, ...prices];
 
   return (
-    <Card className="overflow-hidden rounded-none border-x-0 border-t-0">
-      <CardContent className="flex items-center overflow-hidden py-2">
-        <span className="mr-3 shrink-0 border-r border-border pr-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          {tickerLabel}
+    <div className="border-b border-border">
+      <div className="mx-auto flex max-w-6xl items-center gap-4 overflow-hidden px-4 py-3 sm:px-6">
+        <span className="shrink-0 border-r border-border pr-4 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          {label}
         </span>
-        <div className="flex min-w-0 flex-1 overflow-hidden">
-          <div className="flex shrink-0 animate-ticker gap-8 whitespace-nowrap hover:[animation-play-state:paused]">
-            {strip.map(({ price, delta }, index) => (
-              <span key={index} className="text-sm text-foreground">
-                {price.commodity} {inr.format(price.modalPrice)}
-                {delta !== null && delta !== 0 && (
-                  <span
-                    className={`ml-1 font-mono text-xs font-semibold ${
-                      delta > 0 ? 'text-healthy' : 'text-failed'
-                    }`}
-                  >
-                    {delta > 0 ? '▲' : '▼'}
-                    {inr.format(Math.abs(delta))}
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="tape-track flex w-max gap-8">
+            {strip.map((price, i) => {
+              const delta =
+                price.previousModalPrice == null
+                  ? null
+                  : price.modalPrice - price.previousModalPrice;
+              return (
+                <span key={`${price.id}-${i}`} className="flex shrink-0 items-baseline gap-2 whitespace-nowrap text-sm">
+                  <span className="text-foreground">{price.commodity}</span>
+                  <span className="font-mono tabular-nums text-muted-foreground">
+                    {formatInr(price.modalPrice)}
                   </span>
-                )}
-                <span className="ml-2 text-xs text-muted-foreground">
-                  {price.collectorName} · {price.market}
+                  {delta != null && delta !== 0 && (
+                    <span
+                      className={`font-mono text-xs tabular-nums ${
+                        delta > 0 ? "text-healthy" : "text-failed"
+                      }`}
+                    >
+                      {delta > 0 ? "+" : "−"}
+                      {formatInr(Math.abs(delta))}
+                    </span>
+                  )}
                 </span>
-              </span>
-            ))}
+              );
+            })}
           </div>
         </div>
-      </CardContent>
-    </Card>
-  )
+      </div>
+    </div>
+  );
 }

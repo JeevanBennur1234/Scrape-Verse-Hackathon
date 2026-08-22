@@ -1,181 +1,79 @@
-import { useEffect, useRef, useState } from 'react'
+import { Activity, Radio } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useSSE } from "@/hooks/use-sse";
+import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 
-import { Button } from '@/components/ui/button'
-import { useApiStatus } from '@/hooks/use-api-status'
-import { apiFetch } from '@/lib/api'
-import { useSSE } from '@/hooks/use-sse'
+type Props = {
+  reachable: boolean;
+  sending: boolean;
+  notice: string | null;
+  noticeKind: "ok" | "error" | null;
+  onSimulate: () => void;
+};
 
-interface SimulateResponse {
-  incidentId?: string
-  outcome?: string
-  gradeScore?: number | null
-  error?: string
-}
-
-type OutcomeFlash = 'APPROVED' | 'ESCALATED' | null
-
-function HeartbeatDot() {
-  const { status } = useSSE({ filter: () => false })
-  if (status === 'open') {
-    return (
-      <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold tracking-widest text-healthy">
-        <span className="h-2 w-2 animate-heartbeat rounded-full bg-healthy" />
-        LIVE
-      </span>
-    )
-  }
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold tracking-widest ${
-        status === 'error' ? 'text-failed' : 'text-degraded'
-      }`}
-    >
-      <span
-        className={`h-2 w-2 rounded-full ${
-          status === 'error' ? 'bg-failed' : 'animate-heartbeat bg-degraded'
-        }`}
-      />
-      {status === 'error' ? 'RECONNECTING…' : 'CONNECTING'}
-    </span>
-  )
-}
-
-export function Header() {
-  const [sending, setSending] = useState(false)
-  const [feedback, setFeedback] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
-  const [flash, setFlash] = useState<OutcomeFlash>(null)
-  const [watchdogEnabled, setWatchdogEnabled] = useState<boolean | null>(null)
-  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const apiStatus = useApiStatus()
+export function Header({ reachable, sending, notice, noticeKind, onSimulate }: Props) {
+  const { status } = useSSE();
+  const sseLive = status === "open";
+  const [watchdogEnabled, setWatchdogEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
     apiFetch('/api/health')
       .then((res) => res.json())
       .then((data: any) => {
         if (data && typeof data.watchdogEnabled === 'boolean') {
-          setWatchdogEnabled(data.watchdogEnabled)
+          setWatchdogEnabled(data.watchdogEnabled);
         }
       })
-      .catch(() => {})
-  }, [])
-
-  function flashOutcome(outcome: string | undefined): void {
-    if (outcome !== 'APPROVED' && outcome !== 'ESCALATED') return
-    if (flashTimer.current) clearTimeout(flashTimer.current)
-    setFlash(outcome)
-    flashTimer.current = setTimeout(() => setFlash(null), 1600)
-  }
-
-  async function simulate() {
-    if (sending) return
-    setSending(true)
-    setFeedback(null)
-    try {
-      const response = await apiFetch('/api/simulate-drift', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ collectorKey: 'mumbai_apmc' }),
-      })
-      const body = (await response.json()) as SimulateResponse
-      if (!response.ok) {
-        if (response.status === 429 || body.error === 'rate_limited') {
-          throw new Error('Rate limit exceeded (max 5 requests per 10 minutes). Please wait before trying again.')
-        }
-        if (response.status === 401 || body.error === 'unauthorized_simulate_key') {
-          throw new Error('Unauthorized: Invalid or missing simulate key.')
-        }
-        throw new Error(body.error ?? `HTTP ${response.status}`)
-      }
-      const score =
-        typeof body.gradeScore === 'number' ? ` · grade ${body.gradeScore.toFixed(2)}` : ''
-      flashOutcome(body.outcome)
-      setFeedback({
-        kind: body.outcome === 'ESCALATED' ? 'error' : 'ok',
-        text: `drift simulated · ${String(body.incidentId ?? '').slice(0, 8)}… · ${body.outcome ?? 'healing'}${score}`,
-      })
-    } catch (err) {
-      setFeedback({
-        kind: 'error',
-        text: err instanceof Error ? err.message : 'request failed',
-      })
-    } finally {
-      setSending(false)
-    }
-  }
-
-  const buttonFlash =
-    flash === 'APPROVED'
-      ? 'ring-2 ring-healthy shadow-[0_0_18px_-4px] shadow-healthy/60'
-      : flash === 'ESCALATED'
-        ? 'ring-2 ring-failed shadow-[0_0_18px_-4px] shadow-failed/60'
-        : ''
+      .catch(() => {});
+  }, []);
 
   return (
-    <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
-      <div className="mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3">
+    <header className="border-b border-border">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div className="min-w-0">
-          <h1 className="text-lg font-extrabold tracking-tight">Mandipulse</h1>
-          <p className="text-xs text-muted-foreground">scraping watchdog &amp; self-healing</p>
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Into the Scrape-Verse
+          </p>
+          <h1 className="font-serif text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+            Mandipulse
+          </h1>
+          <p className="mt-1 max-w-md text-sm text-muted-foreground">
+            Wholesale produce prices, watched and repaired when the scrape drifts.
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto sm:justify-end">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[11px] font-semibold tracking-wide ${
-              apiStatus === 'down'
-                ? 'border-failed/40 bg-failed/10 text-failed'
-                : 'border-healthy/30 bg-healthy/10 text-healthy'
-            }`}
-            title={
-              apiStatus === 'down'
-                ? 'A core API request (collectors/prices/incidents) recently failed'
-                : 'Core API requests are succeeding'
-            }
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${
-                apiStatus === 'down'
-                  ? 'animate-heartbeat bg-failed'
-                  : apiStatus === 'up'
-                    ? 'bg-healthy'
-                    : 'bg-degraded'
-              }`}
-            />
-            {apiStatus === 'down' ? 'API UNREACHABLE' : 'API OK'}
-          </span>
-          {watchdogEnabled === false && (
-            <span
-              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-600 bg-neutral-800/60 px-2 py-1 font-mono text-[11px] font-semibold tracking-wide text-neutral-400"
-              title="WATCHDOG_ENABLED is false in the backend environment. Periodic crons will not run."
-            >
-              WATCHDOG DISABLED
-            </span>
-          )}
-          <HeartbeatDot />
-          <Button
-            onClick={() => void simulate()}
-            disabled={sending}
-            className={`h-10 min-h-[40px] font-semibold transition-all duration-300 ${buttonFlash}`}
-            title="Injects a synthetic schema drift on the Mumbai APMC collector and replays the captured real heal"
-          >
-            {sending ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
-                Incident in progress…
-              </span>
-            ) : (
-              '⚡ Simulate Drift'
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={reachable ? "healthy" : "failed"}>
+              <span className={`size-1.5 rounded-full ${reachable ? "bg-healthy" : "bg-failed"}`} />
+              {reachable ? "API OK" : "API down"}
+            </Badge>
+            {watchdogEnabled === false && (
+              <Badge tone="default" title="WATCHDOG_ENABLED is false in the backend environment. Periodic crons will not run.">
+                WATCHDOG DISABLED
+              </Badge>
             )}
+            <Badge tone={sseLive ? "healthy" : status === "error" ? "failed" : "degraded"}>
+              <Radio className="size-3" />
+              {sseLive ? "Stream" : status === "error" ? "Reconnect" : "Connecting"}
+            </Badge>
+          </div>
+          <Button onClick={onSimulate} disabled={sending} className="w-full h-10 min-h-[40px] sm:w-auto sm:min-w-40 gap-2">
+            <Activity className="size-4" />
+            {sending ? "Replaying…" : "Run drift replay"}
           </Button>
         </div>
       </div>
-      {feedback && (
+      {notice && (
         <p
-          className={`mx-auto max-w-7xl px-4 pb-2 text-xs ${
-            feedback.kind === 'ok' ? 'text-healthy' : 'text-failed'
+          className={`mx-auto max-w-6xl px-4 pb-3 font-mono text-xs sm:px-6 ${
+            noticeKind === "error" ? "text-failed" : "text-healthy"
           }`}
         >
-          <span className="font-mono">{feedback.text}</span>
+          {notice}
         </p>
       )}
     </header>
-  )
+  );
 }

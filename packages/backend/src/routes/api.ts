@@ -31,8 +31,21 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
     const allowedIds = new Set([...registeredIds, 'PENDING'])
 
     let filteredRows = dbRows.filter((r) => allowedIds.has(r.id))
+    
+    const hasCMsambPending = filteredRows.some((r) => r.id === 'c_msamb_pending')
+    if (hasCMsambPending) {
+      filteredRows = filteredRows.filter((r) => r.id !== 'PENDING')
+    } else {
+      filteredRows = filteredRows.map((r) => {
+        if (r.id === 'PENDING') {
+          return { ...r, id: 'c_msamb_pending', status: 'PENDING_SETUP' }
+        }
+        return r
+      })
+    }
+
     filteredRows = filteredRows.map((r) => {
-      if (r.id === 'PENDING' || r.id === 'c_msamb_pending') {
+      if (r.id === 'c_msamb_pending') {
         return { ...r, status: 'PENDING_SETUP' }
       }
       return r
@@ -40,9 +53,16 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
 
     const { pending } = partitionCollectors()
     const dbIds = new Set(filteredRows.map((r) => r.id))
+    const dbNames = new Set(filteredRows.map((r) => r.name.toLowerCase()))
+    const dbUrls = new Set(filteredRows.map((r) => r.portalUrl ? r.portalUrl.toLowerCase() : ''))
 
     const pendingEntries = pending
-      .filter((c) => !dbIds.has(c.collectorId))
+      .filter((c) => {
+        if (dbIds.has(c.collectorId)) return false
+        if (dbNames.has(c.name.toLowerCase())) return false
+        if (dbUrls.has(c.sourceUrl.toLowerCase())) return false
+        return true
+      })
       .map((c) => ({
         id: c.collectorId,
         name: c.name,

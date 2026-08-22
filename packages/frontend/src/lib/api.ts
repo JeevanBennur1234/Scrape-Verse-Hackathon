@@ -32,6 +32,10 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
     emit(false)
     throw err
   }
-  emit(response.ok)
+  if (response.status >= 500 && response.status < 600) {
+    emit(false)
+  } else {
+    emit(true)
+  }
   return response
 }

@@ -30,37 +30,60 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
     const seed = JSON.parse(raw)
 
     let collectorsDone = 0
+    const seededCollectorIds = new Set<string>()
+
     for (const collector of seed.collectors) {
+      if (collector.portalUrl?.includes('example.in') || collector.id === 'c_mt2mhs6s2i4ww8hntx') {
+        continue
+      }
+      let id = collector.id
+      let status = collector.status
+      if (id === 'PENDING') {
+        id = 'c_msamb_pending'
+        status = 'PENDING_SETUP'
+      }
+
       await prisma.collector.upsert({
-        where: { id: collector.id },
-        update: { name: collector.name, portalUrl: collector.portalUrl },
+        where: { id },
+        update: { name: collector.name, portalUrl: collector.portalUrl, status },
         create: {
-          id: collector.id,
+          id,
           name: collector.name,
           portalUrl: collector.portalUrl,
           state: collector.state ?? 'IDLE',
-          status: collector.status ?? 'HEALTHY',
+          status: status ?? 'HEALTHY',
           lastGoodSelectors: collector.lastGoodSelectors ?? {},
           ...(collector.createdAt ? { createdAt: new Date(collector.createdAt) } : {}),
         },
       })
+      seededCollectorIds.add(id)
       collectorsDone += 1
     }
 
     let ticksDone = 0
-    for (const part of chunk(seed.priceTicks, CHUNK_SIZE)) {
+    const filteredTicks = seed.priceTicks.filter((tick: any) => {
+      let cid = tick.collectorId
+      if (cid === 'PENDING') cid = 'c_msamb_pending'
+      return seededCollectorIds.has(cid)
+    })
+
+    for (const part of chunk(filteredTicks, CHUNK_SIZE)) {
       const result = await prisma.priceTick.createMany({
-        data: part.map((tick: any) => ({
-          id: tick.id,
-          collectorId: tick.collectorId,
-          commodity: tick.commodity,
-          market: tick.market,
-          modalPrice: tick.modalPrice,
-          minPrice: tick.minPrice,
-          maxPrice: tick.maxPrice,
-          arrivalQty: tick.arrivalQty,
-          recordedAt: new Date(tick.recordedAt),
-        })),
+        data: part.map((tick: any) => {
+          let cid = tick.collectorId
+          if (cid === 'PENDING') cid = 'c_msamb_pending'
+          return {
+            id: tick.id,
+            collectorId: cid,
+            commodity: tick.commodity,
+            market: tick.market,
+            modalPrice: tick.modalPrice,
+            minPrice: tick.minPrice,
+            maxPrice: tick.maxPrice,
+            arrivalQty: tick.arrivalQty,
+            recordedAt: new Date(tick.recordedAt),
+          }
+        }),
         skipDuplicates: true,
       })
       ticksDone += result.count
@@ -68,13 +91,22 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
 
     let incidentsDone = 0
     let gradesDone = 0
-    for (const incident of seed.incidents) {
+    const filteredIncidents = seed.incidents.filter((inc: any) => {
+      let cid = inc.collectorId
+      if (cid === 'PENDING') cid = 'c_msamb_pending'
+      return seededCollectorIds.has(cid)
+    })
+
+    for (const incident of filteredIncidents) {
+      let cid = incident.collectorId
+      if (cid === 'PENDING') cid = 'c_msamb_pending'
+
       await prisma.incident.upsert({
         where: { id: incident.id },
         update: { status: incident.status, symptom: incident.symptom },
         create: {
           id: incident.id,
-          collectorId: incident.collectorId,
+          collectorId: cid,
           type: incident.type as any,
           field: incident.field,
           symptom: incident.symptom,

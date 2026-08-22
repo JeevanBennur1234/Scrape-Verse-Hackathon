@@ -4,7 +4,7 @@ import cors from '@fastify/cors'
 import Fastify from 'fastify'
 
 import { logRegistryState } from './collectors/mandi-registry.js'
-import { ensureAllCollectorRows } from './watchdog/scheduler.js'
+import { ensureAllCollectorRows, startWatchdog } from './watchdog/scheduler.js'
 import { seedProductionDataIfEmpty } from './db-seed-helper.js'
 import apiRoutes from './routes/api.js'
 import simulateRoutes from './routes/simulate.js'
@@ -69,12 +69,19 @@ app.get('/', async () => ({
 
 // Liveness probe duplicated under /api so same-origin frontends behind the
 // Vite dev proxy (which forwards only /api/*) reach the real backend too.
-app.get('/api/health', async () => ({ status: 'ok' }))
-app.get('/health', async () => ({ status: 'ok' }))
+app.get('/api/health', async () => ({
+  status: 'ok',
+  watchdogEnabled: process.env.WATCHDOG_ENABLED === 'true',
+}))
+app.get('/health', async () => ({
+  status: 'ok',
+  watchdogEnabled: process.env.WATCHDOG_ENABLED === 'true',
+}))
 
 logRegistryState()
 await ensureAllCollectorRows()
 await seedProductionDataIfEmpty()
+startWatchdog()
 
 const port = Number(process.env.PORT ?? 3000)
 

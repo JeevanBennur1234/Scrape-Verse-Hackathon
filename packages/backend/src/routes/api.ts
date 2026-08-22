@@ -2,7 +2,7 @@ import { fastifySSE } from '@fastify/sse'
 import type { FastifyInstance } from 'fastify'
 
 import { prisma } from '../db.js'
-import { partitionCollectors } from '../collectors/mandi-registry.js'
+import { partitionCollectors, COLLECTORS, hasRealCollectorId } from '../collectors/mandi-registry.js'
 import { eventBus, type StructuredEvent } from '../events/pubsub.js'
 
 const INCIDENT_STATUSES = ['DETECTED', 'HEALING', 'GRADED', 'RECOVERED', 'ESCALATED'] as const
@@ -27,8 +27,19 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
       include: { _count: { select: { priceTicks: true, incidents: true } } },
     })
 
+    const registeredIds = new Set(COLLECTORS.map((c) => c.collectorId))
+    const allowedIds = new Set([...registeredIds, 'PENDING'])
+
+    let filteredRows = dbRows.filter((r) => allowedIds.has(r.id))
+    filteredRows = filteredRows.map((r) => {
+      if (r.id === 'PENDING' || r.id === 'c_msamb_pending') {
+        return { ...r, status: 'PENDING_SETUP' }
+      }
+      return r
+    })
+
     const { pending } = partitionCollectors()
-    const dbIds = new Set(dbRows.map((r) => r.id))
+    const dbIds = new Set(filteredRows.map((r) => r.id))
 
     const pendingEntries = pending
       .filter((c) => !dbIds.has(c.collectorId))
@@ -42,12 +53,17 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
         _count: { priceTicks: 0, incidents: 0 },
       }))
 
-    return [...dbRows, ...pendingEntries]
+    return [...filteredRows, ...pendingEntries]
   })
 
   app.get<{ Querystring: PricesQuery }>('/prices', async (request) => {
+    const activeCollectorIds = COLLECTORS.filter(hasRealCollectorId).map((c) => c.collectorId)
+    const whereClause = request.query.collectorId
+      ? { collectorId: request.query.collectorId }
+      : { collectorId: { in: activeCollectorIds } }
+
     const ticks = await prisma.priceTick.findMany({
-      where: request.query.collectorId ? { collectorId: request.query.collectorId } : undefined,
+      where: whereClause,
       orderBy: { recordedAt: 'desc' },
       take: 2000,
       include: { collector: { select: { name: true, status: true } } },
@@ -90,9 +106,11 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const limit = Math.min(Math.max(Number(request.query.limit ?? 50) || 50, 1), 200)
+    const allowedCollectorIds = [...COLLECTORS.map((c) => c.collectorId), 'PENDING']
 
     return prisma.incident.findMany({
       where: {
+        collectorId: { in: allowedCollectorIds },
         ...(status ? { status: status as (typeof INCIDENT_STATUSES)[number] } : {}),
         ...(type ? { type: type as (typeof INCIDENT_TYPES)[number] } : {}),
       },
@@ -106,11 +124,26 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
   })
 
   app.get('/stream', { sse: 'only' }, async (_request, reply) => {
+    reply.sse.sendHeaders()
+    reply.raw.write(': ping\n\n')
+
+    const pingInterval = setInterval(() => {
+      if (reply.sse.isConnected) {
+        reply.raw.write(': ping\n\n')
+      } else {
+        clearInterval(pingInterval)
+      }
+    }, 15000)
+
+    reply.sse.onClose(() => {
+      clearInterval(pingInterval)
+    })
+
     await reply.sse.send(streamHealEvents())
   })
 }
 
-function streamHealEvents(): AsyncGenerator<{ id: string; data: string }> {
+function streamHealEvents(): AsyncGenerator<{ id: string; data: any }> {
   return (async function* () {
     for await (const event of eventBus.streamAllWithReplay()) {
       yield serializeEvent(event)
@@ -118,9 +151,9 @@ function streamHealEvents(): AsyncGenerator<{ id: string; data: string }> {
   })()
 }
 
-function serializeEvent(event: StructuredEvent): { id: string; data: string } {
+function serializeEvent(event: StructuredEvent): { id: string; data: any } {
   return {
     id: event.id,
-    data: JSON.stringify(event),
+    data: event,
   }
 }

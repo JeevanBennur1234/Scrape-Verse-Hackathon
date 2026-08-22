@@ -31,3 +31,6 @@ packages/backend/logs/
 
 # Coverage
 coverage/
+
+# Repository bloat
+mumbai-run.json

@@ -7,6 +7,7 @@ import { MandiTable } from '@/components/dashboard/mandi-table'
 import { PriceTicker } from '@/components/dashboard/price-ticker'
 import { StatusCards } from '@/components/dashboard/status-cards'
 import { BackendDownBanner } from '@/components/backend-down-banner'
+import { SSEProvider } from '@/hooks/sse-provider'
 import { apiFetch } from '@/lib/api'
 
 type BackendHealth = 'checking' | 'ok' | 'down'
@@ -47,20 +48,46 @@ function App() {
   if (health === 'down') return <BackendDownBanner onRetry={retry} />
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <Header />
-      <PriceTicker />
-      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:grid-cols-[1fr_420px]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <StatusCards />
-          <MandiTable />
-        </div>
-        <div className="flex min-h-0 flex-col gap-4">
-          <HealingTerminal />
-          <IncidentTimeline />
-        </div>
-      </main>
-    </div>
+    <SSEProvider>
+      <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
+        <Header />
+        <PriceTicker />
+        <main className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:grid-cols-[1fr_420px]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <StatusCards />
+            <MandiTable />
+          </div>
+          <div className="flex min-h-0 flex-col gap-4">
+            <HealingTerminal />
+            <IncidentTimeline />
+          </div>
+        </main>
+        <footer className="mt-auto border-t border-border bg-muted/20 py-4 text-center text-xs text-muted-foreground">
+          <div className="mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>Mandipulse · Into the Scrape-Verse</span>
+            <div className="flex items-center gap-4">
+              <a
+                href="https://github.com/JeevanBennur1234/Scrape-Verse-Hackathon"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline hover:text-foreground"
+              >
+                GitHub Repository
+              </a>
+              <span className="text-border">|</span>
+              <a
+                href="https://apmcmumbai.org/bajarbhav/daily-bajarbhav-dates/veg"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline hover:text-foreground"
+              >
+                Mumbai APMC Source
+              </a>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </SSEProvider>
   )
 }
 

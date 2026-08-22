@@ -43,6 +43,31 @@ export function PriceTicker() {
     }
   }, [])
 
+  const newestRecordedAt = useMemo(() => {
+    if (prices.length === 0) return null
+    let maxDate = new Date(0)
+    for (const p of prices) {
+      const d = new Date(p.recordedAt)
+      if (d > maxDate) {
+        maxDate = d
+      }
+    }
+    return maxDate
+  }, [prices])
+
+  const tickerLabel = useMemo(() => {
+    if (!newestRecordedAt) return 'LIVE'
+    const diffMs = Date.now() - newestRecordedAt.getTime()
+    const diffHours = diffMs / (1000 * 60 * 60)
+    if (diffHours > 6) {
+      const day = newestRecordedAt.getDate()
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      const month = months[newestRecordedAt.getMonth()]
+      return `SNAPSHOT · ${day} ${month}`
+    }
+    return 'LIVE'
+  }, [newestRecordedAt])
+
   const items = useMemo(
     () =>
       prices.map((price) => {
@@ -58,7 +83,7 @@ export function PriceTicker() {
       <Card className="overflow-hidden rounded-none border-x-0 border-t-0">
         <CardContent className="flex items-center py-2">
           <span className="mr-3 shrink-0 border-r border-border pr-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Live
+            {tickerLabel}
           </span>
           <span className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-degraded" />
@@ -74,7 +99,7 @@ export function PriceTicker() {
     <Card className="overflow-hidden rounded-none border-x-0 border-t-0">
       <CardContent className="flex items-center overflow-hidden py-2">
         <span className="mr-3 shrink-0 border-r border-border pr-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Live
+          {tickerLabel}
         </span>
         <div className="flex min-w-0 flex-1 overflow-hidden">
           <div className="flex shrink-0 animate-ticker gap-8 whitespace-nowrap hover:[animation-play-state:paused]">

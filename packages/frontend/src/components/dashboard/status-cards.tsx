@@ -16,6 +16,7 @@ interface CollectorRow {
 interface PriceRow {
   id: string
   collectorId: string
+  commodity: string
   modalPrice: number
   recordedAt: string
 }
@@ -182,11 +183,11 @@ export function StatusCards() {
                   {collector.status}
                 </Badge>
               </div>
-              <div className="flex items-baseline justify-between gap-2">
+              <div className="flex flex-col gap-0.5 min-w-0">
                 {latest ? (
                   <>
-                    <span className="text-xl font-semibold tabular-nums">
-                      {inr.format(latest.modalPrice)}
+                    <span className="truncate text-lg font-semibold tabular-nums" title={`${latest.commodity} ${inr.format(latest.modalPrice)}`}>
+                      {latest.commodity} {inr.format(latest.modalPrice)}
                     </span>
                     <span className="font-mono text-[10px] text-muted-foreground" title={latest.recordedAt}>
                       {relativeTime(latest.recordedAt, now)}

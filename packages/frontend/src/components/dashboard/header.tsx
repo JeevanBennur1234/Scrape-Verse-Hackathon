@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { useApiStatus } from '@/hooks/use-api-status'
@@ -44,8 +44,20 @@ export function Header() {
   const [sending, setSending] = useState(false)
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [flash, setFlash] = useState<OutcomeFlash>(null)
+  const [watchdogEnabled, setWatchdogEnabled] = useState<boolean | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const apiStatus = useApiStatus()
+
+  useEffect(() => {
+    apiFetch('/api/health')
+      .then((res) => res.json())
+      .then((data: any) => {
+        if (data && typeof data.watchdogEnabled === 'boolean') {
+          setWatchdogEnabled(data.watchdogEnabled)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   function flashOutcome(outcome: string | undefined): void {
     if (outcome !== 'APPROVED' && outcome !== 'ESCALATED') return
@@ -65,7 +77,15 @@ export function Header() {
         body: JSON.stringify({ collectorKey: 'mumbai_apmc' }),
       })
       const body = (await response.json()) as SimulateResponse
-      if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
+      if (!response.ok) {
+        if (response.status === 429 || body.error === 'rate_limited') {
+          throw new Error('Rate limit exceeded (max 5 requests per 10 minutes). Please wait before trying again.')
+        }
+        if (response.status === 401 || body.error === 'unauthorized_simulate_key') {
+          throw new Error('Unauthorized: Invalid or missing simulate key.')
+        }
+        throw new Error(body.error ?? `HTTP ${response.status}`)
+      }
       const score =
         typeof body.gradeScore === 'number' ? ` · grade ${body.gradeScore.toFixed(2)}` : ''
       flashOutcome(body.outcome)
@@ -92,12 +112,12 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
+      <div className="mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3">
         <div className="min-w-0">
           <h1 className="text-lg font-extrabold tracking-tight">Mandipulse</h1>
           <p className="text-xs text-muted-foreground">scraping watchdog &amp; self-healing</p>
         </div>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto sm:justify-end">
           <span
             className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[11px] font-semibold tracking-wide ${
               apiStatus === 'down'
@@ -119,13 +139,21 @@ export function Header() {
                     : 'bg-degraded'
               }`}
             />
-            {apiStatus === 'down' ? 'API UNREACHABLE' : 'API'}
+            {apiStatus === 'down' ? 'API UNREACHABLE' : 'API OK'}
           </span>
+          {watchdogEnabled === false && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-600 bg-neutral-800/60 px-2 py-1 font-mono text-[11px] font-semibold tracking-wide text-neutral-400"
+              title="WATCHDOG_ENABLED is false in the backend environment. Periodic crons will not run."
+            >
+              WATCHDOG DISABLED
+            </span>
+          )}
           <HeartbeatDot />
           <Button
             onClick={() => void simulate()}
             disabled={sending}
-            className={`font-semibold transition-all duration-300 ${buttonFlash}`}
+            className={`h-10 min-h-[40px] font-semibold transition-all duration-300 ${buttonFlash}`}
             title="Injects a synthetic schema drift on the Mumbai APMC collector and replays the captured real heal"
           >
             {sending ? (

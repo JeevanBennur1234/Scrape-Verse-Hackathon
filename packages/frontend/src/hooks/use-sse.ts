@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 
-import { apiUrl } from '@/lib/api'
+import { SSEContext } from './sse-provider'
 
 export interface SseEvent {
   id: string
@@ -22,9 +22,13 @@ export function useSSE(options: UseSSEOptions = {}): {
   lastEvent: SseEvent | null
   status: SSEStatus
 } {
-  const { url = apiUrl('/api/stream'), filter, limit = 200 } = options
-  const [events, setEvents] = useState<SseEvent[]>([])
-  const [status, setStatus] = useState<SSEStatus>('connecting')
+  const context = useContext(SSEContext)
+  if (!context) {
+    throw new Error('useSSE must be used within an SSEProvider')
+  }
+
+  const { filter, limit = 200 } = options
+  const [localEvents, setLocalEvents] = useState<SseEvent[]>([])
   const seenIds = useRef(new Set<string>())
   const filterRef = useRef(filter)
 
@@ -33,24 +37,29 @@ export function useSSE(options: UseSSEOptions = {}): {
   }, [filter])
 
   useEffect(() => {
-    const source = new EventSource(url)
-
-    source.onopen = () => setStatus('open')
-    source.onerror = () => setStatus('error')
-    source.onmessage = (message) => {
-      try {
-        const event = JSON.parse(message.data) as SseEvent
-        if (filterRef.current && !filterRef.current(event.type)) return
-        if (seenIds.current.has(event.id)) return
-        seenIds.current.add(event.id)
-        setEvents((prev) => [...prev.slice(-(limit - 1)), event])
-      } catch {
-        // ignore malformed frames
-      }
+    const filteredHistory: SseEvent[] = []
+    seenIds.current.clear()
+    for (const event of context.events) {
+      if (seenIds.current.has(event.id)) continue
+      if (filterRef.current && !filterRef.current(event.type)) continue
+      seenIds.current.add(event.id)
+      filteredHistory.push(event)
     }
+    setLocalEvents(filteredHistory.slice(-limit))
 
-    return () => source.close()
-  }, [url, limit])
+    const unsubscribe = context.subscribe((event) => {
+      if (seenIds.current.has(event.id)) return
+      if (filterRef.current && !filterRef.current(event.type)) return
+      seenIds.current.add(event.id)
+      setLocalEvents((prev) => [...prev.slice(-(limit - 1)), event])
+    })
 
-  return { events, lastEvent: events[events.length - 1] ?? null, status }
+    return unsubscribe
+  }, [context, limit])
+
+  return {
+    events: localEvents,
+    lastEvent: localEvents[localEvents.length - 1] ?? null,
+    status: context.status,
+  }
 }

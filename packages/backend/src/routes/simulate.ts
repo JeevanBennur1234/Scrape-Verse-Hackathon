@@ -30,6 +30,30 @@ const LIVE_CLI_TIMEOUT_MS = LIVE_CLI_TIMEOUT_SECONDS * 1000
 interface SimulateDriftBody {
   collectorKey?: string
   collectorId?: string
+  key?: string
+}
+
+interface RateLimitInfo {
+  tokens: number
+  lastRefill: number
+}
+
+const limiters = new Map<string, RateLimitInfo>()
+const MAX_TOKENS = 2
+const REFILL_RATE_PER_MS = 5 / (10 * 60 * 1000)
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const info = limiters.get(ip) ?? { tokens: MAX_TOKENS, lastRefill: now }
+  const elapsed = now - info.lastRefill
+  const refilled = elapsed * REFILL_RATE_PER_MS
+  const tokens = Math.min(MAX_TOKENS, info.tokens + refilled)
+  if (tokens >= 1) {
+    limiters.set(ip, { tokens: tokens - 1, lastRefill: now })
+    return true
+  }
+  limiters.set(ip, { tokens, lastRefill: now })
+  return false
 }
 
 interface CapturedArtifact {
@@ -116,11 +140,26 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
           properties: {
             collectorKey: { type: 'string', minLength: 1 },
             collectorId: { type: 'string', minLength: 1 },
+            key: { type: 'string' },
           },
         },
       },
     },
     async (request, reply) => {
+      const ip = request.ip || '127.0.0.1'
+      if (!checkRateLimit(ip)) {
+        return reply.code(429).send({ error: 'rate_limited' })
+      }
+
+      const simulateKey = process.env.SIMULATE_KEY
+      if (simulateKey) {
+        const headerKey = request.headers['x-simulate-key']
+        const bodyKey = request.body.key
+        if (headerKey !== simulateKey && bodyKey !== simulateKey) {
+          return reply.code(401).send({ error: 'unauthorized_simulate_key' })
+        }
+      }
+
       const { collectorKey, collectorId } = request.body
 
       let key = collectorKey
@@ -204,6 +243,14 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         type: incident.type,
         simulated: true,
       })
+      await sleep(stepDelay())
+
+      eventBus.publish('heal.cli.started', {
+        incidentId: incident.id,
+        collectorId: definition.collectorId,
+        simulated: true,
+      })
+      await sleep(stepDelay())
 
       // Steps 4-5: real CLI heal only behind token+flag, else captured replay
       const liveCliEnabled =
@@ -243,6 +290,14 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         } catch (err) {
           const message = errorMessage(err)
           console.error(`[simulate-drift] no preview available at all: ${message}`)
+
+          eventBus.publish('heal.cli.failed', {
+            incidentId: incident.id,
+            error: message,
+            simulated: true,
+          })
+          await sleep(stepDelay())
+
           await prisma.incident.update({
             where: { id: incident.id },
             data: { status: 'ESCALATED' },
@@ -266,8 +321,16 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         )
       }
 
-      // Step 6: GRADED — same grader as genuine heals, full GradeReport emitted
+      eventBus.publish('heal.cli.completed', {
+        incidentId: incident.id,
+        collectorId: definition.collectorId,
+        output: JSON.stringify(previewResult),
+        parsed: previewResult,
+        simulated: true,
+      })
       await sleep(stepDelay())
+
+      // Step 6: GRADED — same grader as genuine heals, full GradeReport emitted
       const records = extractRecords(previewResult)
       const rows = records.flatMap((record) => expandRows(definition.key, record))
       const report: GenuineHealGradeReport = gradeGenuineHealPreview({ rows })

@@ -68,7 +68,9 @@ export function HealingTerminal() {
           className="h-72 overflow-y-auto bg-black p-3 font-mono text-xs leading-relaxed"
         >
           {traces.length === 0 ? (
-            <p className="text-neutral-500">waiting for heal events…</p>
+            <p className="text-neutral-500">
+              Click ⚡ Simulate Drift to watch DETECT → HEAL → GRADE → RECOVERED
+            </p>
           ) : (
             traces.map((trace) => <IncidentBlock key={trace.incidentId} trace={trace} />)
           )}

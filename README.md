@@ -50,7 +50,7 @@ mandipulse/
 │   ├── backend/   Fastify API, watchdog, Bright Data clients, Prisma
 │   └── frontend/  React dashboard (SSE live view)
 ├── docker-compose.yml   PostgreSQL 16
-├── railway.json         backend deploy (Railway)
+├── railway.json         backend deploy (Railway - stale/unused)
 └── vercel.json          frontend deploy (Vercel)
 ```
 
@@ -152,17 +152,18 @@ npx -p @brightdata/cli bdata scraper approve c_mt364sxr1jxad1qpuy
 
 ## Deploying
 
-### Railway (backend)
+### Render (backend)
 
-`railway.json` is included. Create the service from the repo root; Railway (Nixpacks) will install workspace deps, build the backend, and start it:
-
-- **Env vars**: `DATABASE_URL` (add a Railway Postgres plugin or external Postgres, e.g. Neon), `BRIGHTDATA_API_TOKEN` (optional), `PORT` (Railway sets it automatically).
-- Run `pnpm db:migrate` once against the production DB (Railway won't run migrations automatically).
+Deploy the monorepo backend on Render using the following settings:
+- **Build Command**: `pnpm -F @mandipulse/backend build`
+- **Start Command**: `pnpm -F @mandipulse/backend start`
+- **Env vars**: `DATABASE_URL` (PostgreSQL connection string), `BRIGHTDATA_API_TOKEN` (optional), `PORT` (automatically set by Render).
+- Run migrations against the production database.
 - Healthcheck path: `/health`.
 
 ### Vercel (frontend)
 
-`vercel.json` is included (`rootDirectory: packages/frontend`). Add a project env var `BACKEND_URL` pointing at the Railway backend host (e.g. `your-app.up.railway.app`); `/api/*` calls are rewritten to it. CORS is already open on the backend (`origin: true`).
+`vercel.json` is included (`rootDirectory: packages/frontend`). Add a project env var `VITE_API_URL` pointing at the Render backend host (e.g. `https://scrape-verse-hackathon.onrender.com`); `/api/*` calls are rewritten to it. CORS is already open on the backend (`origin: true`).
 
 ### Production API endpoints
 

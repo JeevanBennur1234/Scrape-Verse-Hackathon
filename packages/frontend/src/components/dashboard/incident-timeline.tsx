@@ -113,7 +113,7 @@ export function IncidentTimeline() {
                       className="border-simulated/50 bg-simulated/15 text-simulated"
                       title="This incident was produced by the simulate-drift replay, not a live portal scrape"
                     >
-                      LIVE REPLAY
+                      SIMULATED
                     </Badge>
                   )}
                   <span className="ml-auto font-mono text-xs tabular-nums text-muted-foreground">

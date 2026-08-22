@@ -22,7 +22,7 @@ export const MANDI_COLLECTORS = {
     ],
   },
   msamb: {
-    collectorId: 'PENDING',
+    collectorId: 'c_msamb_pending',
     name: 'MSAMB APMC Price Information',
     state: 'Maharashtra',
     sourceUrl: 'https://www.msamb.com/ApmcDetail/APMCPriceInformation',
@@ -54,7 +54,7 @@ export const COLLECTORS: CollectorDefinition[] = (
 ).map(([key, config]) => toDefinition(key, config))
 
 export function hasRealCollectorId(definition: CollectorDefinition): boolean {
-  return REAL_COLLECTOR_ID_PATTERN.test(definition.collectorId)
+  return REAL_COLLECTOR_ID_PATTERN.test(definition.collectorId) && definition.collectorId !== 'c_msamb_pending'
 }
 
 export interface PartitionedCollectors {

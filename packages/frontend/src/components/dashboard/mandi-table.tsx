@@ -104,8 +104,22 @@ export function MandiTable() {
     }
   }, [])
 
+  const [filterText, setFilterText] = useState('')
+
+  const filtered = useMemo(() => {
+    if (!filterText.trim()) return prices
+    const query = filterText.toLowerCase()
+    return prices.filter((price) => {
+      return (
+        price.commodity.toLowerCase().includes(query) ||
+        price.market.toLowerCase().includes(query) ||
+        price.collectorName.toLowerCase().includes(query)
+      )
+    })
+  }, [prices, filterText])
+
   const sorted = useMemo(() => {
-    const copy = [...prices]
+    const copy = [...filtered]
     copy.sort((a, b) => {
       const av = a[sortKey]
       const bv = b[sortKey]
@@ -116,7 +130,7 @@ export function MandiTable() {
       return sortDir === 'asc' ? cmp : -cmp
     })
     return copy
-  }, [prices, sortKey, sortDir])
+  }, [filtered, sortKey, sortDir])
 
   const pendingCollectors = useMemo(
     () => collectors.filter((c) => c.status === 'PENDING_SETUP'),
@@ -144,100 +158,122 @@ export function MandiTable() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {COLUMNS.map((column) => (
-                <TableHead
-                  key={column.key}
-                  className={`cursor-pointer select-none hover:text-foreground ${
-                    column.numeric ? 'text-right' : ''
-                  }`}
-                  onClick={() => toggleSort(column.key)}
-                >
-                  {column.label}
-                  {sortKey === column.key && (
-                    <span className="ml-1 text-muted-foreground">
-                      {sortDir === 'asc' ? '↑' : '↓'}
-                    </span>
-                  )}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.length === 0 ? (
-              collectors.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={COLUMNS.length} className="py-8 text-center text-muted-foreground">
-                    Loading collectors…
-                  </TableCell>
-                </TableRow>
-              ) : (
-                collectors
-                  .filter((c) => c.status !== 'PENDING_SETUP')
-                  .map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell colSpan={COLUMNS.length} className="py-4 text-center text-muted-foreground">
-                        <span className="inline-flex items-center gap-2">
-                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-degraded" />
-                          <span className="font-medium text-foreground">{c.name}</span>
-                          — no ticks yet, waiting for first scrape
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))
-              )
-            ) : (
-              sorted.map((price) => (
-                <TableRow key={price.id}>
-                  <TableCell className="font-medium capitalize">{price.commodity}</TableCell>
-                  <TableCell>{price.market}</TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="text-muted-foreground">{price.collectorName}</span>
-                      <Badge
-                        variant="outline"
-                        className={`px-1 py-0 text-[9px] uppercase ${healthBadgeClass(price.collectorStatus)}`}
-                      >
-                        {price.collectorStatus ?? 'IDLE'}
-                      </Badge>
-                      <span
-                        className="font-mono text-[10px] tabular-nums text-muted-foreground"
-                        title={price.recordedAt}
-                      >
-                        last tick: {relativeTime(price.recordedAt, now)}
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <input
+            type="text"
+            placeholder="Filter commodity or market..."
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            className="w-full sm:max-w-xs rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          />
+          {filterText && (
+            <span className="text-xs text-muted-foreground font-mono">
+              Showing {sorted.length} of {prices.length} rows
+            </span>
+          )}
+        </div>
+        <div className="overflow-x-auto min-w-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {COLUMNS.map((column) => (
+                  <TableHead
+                    key={column.key}
+                    className={`cursor-pointer select-none hover:text-foreground ${
+                      column.numeric ? 'text-right' : ''
+                    }`}
+                    onClick={() => toggleSort(column.key)}
+                  >
+                    {column.label}
+                    {sortKey === column.key && (
+                      <span className="ml-1 text-muted-foreground">
+                        {sortDir === 'asc' ? '↑' : '↓'}
                       </span>
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.length === 0 ? (
+                filterText.trim() ? (
+                  <TableRow>
+                    <TableCell colSpan={COLUMNS.length} className="py-8 text-center text-muted-foreground">
+                      No commodities match
+                    </TableCell>
+                  </TableRow>
+                ) : collectors.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={COLUMNS.length} className="py-8 text-center text-muted-foreground">
+                      Loading collectors…
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  collectors
+                    .filter((c) => c.status !== 'PENDING_SETUP')
+                    .map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell colSpan={COLUMNS.length} className="py-4 text-center text-muted-foreground">
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-degraded" />
+                            <span className="font-medium text-foreground">{c.name}</span>
+                            — no ticks yet, waiting for first scrape
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                )
+              ) : (
+                sorted.map((price) => (
+                  <TableRow key={price.id}>
+                    <TableCell className="font-medium capitalize">{price.commodity}</TableCell>
+                    <TableCell>{price.market}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-muted-foreground">{price.collectorName}</span>
+                        <Badge
+                          variant="outline"
+                          className={`px-1 py-0 text-[9px] uppercase ${healthBadgeClass(price.collectorStatus)}`}
+                        >
+                          {price.collectorStatus ?? 'IDLE'}
+                        </Badge>
+                        <span
+                          className="hidden sm:inline font-mono text-[10px] tabular-nums text-muted-foreground"
+                          title={price.recordedAt}
+                        >
+                          last tick: {relativeTime(price.recordedAt, now)}
+                        </span>
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">
+                      {inr.format(price.modalPrice)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {inr.format(price.minPrice)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {inr.format(price.maxPrice)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {qty.format(price.arrivalQty)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+              {pendingCollectors.map((c) => (
+                <TableRow key={c.id} className="bg-muted/30">
+                  <TableCell colSpan={COLUMNS.length} className="py-2.5 text-center text-muted-foreground">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-degraded" />
+                      <span className="font-medium text-foreground">{c.name}</span>
+                      — awaiting collector creation
                     </span>
                   </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
-                    {inr.format(price.modalPrice)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {inr.format(price.minPrice)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {inr.format(price.maxPrice)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {qty.format(price.arrivalQty)}
-                  </TableCell>
                 </TableRow>
-              ))
-            )}
-            {pendingCollectors.map((c) => (
-              <TableRow key={c.id} className="bg-muted/30">
-                <TableCell colSpan={COLUMNS.length} className="py-2.5 text-center text-muted-foreground">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-degraded" />
-                    <span className="font-medium text-foreground">{c.name}</span>
-                    — awaiting collector creation
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   )

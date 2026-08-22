@@ -4,6 +4,14 @@
   "private": true,
   "description": "Mandipulse monorepo - scraping platform powered by Bright Data",
   "packageManager": "pnpm@11.22.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "prisma"
+    ]
+  },
   "engines": {
     "node": ">=22"
   },

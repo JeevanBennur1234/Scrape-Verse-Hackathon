@@ -1,6 +1,8 @@
 packages:
   - packages/*
 
+strictDepBuilds: false
+
 onlyBuiltDependencies:
   - '@prisma/client'
   - '@prisma/engines'

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { relativeTime, useNowTick } from '@/hooks/use-now'
-import { apiUrl } from '@/lib/api'
+import { apiFetch } from '@/lib/api'
 import {
   Table,
   TableBody,
@@ -79,8 +79,8 @@ export function MandiTable() {
     async function load() {
       try {
         const [priceRes, collectorRes] = await Promise.all([
-          fetch(apiUrl('/api/prices')),
-          fetch(apiUrl('/api/collectors')),
+          apiFetch('/api/prices'),
+          apiFetch('/api/collectors'),
         ])
         if (!priceRes.ok || !collectorRes.ok) return
         const [rows, cols] = await Promise.all([

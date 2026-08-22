@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { GradeBadge, type RepairChecks } from '@/components/grade-badge'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { apiUrl } from '@/lib/api'
+import { apiFetch } from '@/lib/api'
 
 import { useSSE } from '@/hooks/use-sse'
 
@@ -52,7 +52,7 @@ export function IncidentTimeline() {
     let cancelled = false
     async function load() {
       try {
-        const response = await fetch(apiUrl('/api/incidents?limit=20'))
+        const response = await apiFetch('/api/incidents?limit=20')
         if (!response.ok) return
         const rows = (await response.json()) as IncidentRow[]
         if (!cancelled) setIncidents(rows)
@@ -73,7 +73,7 @@ export function IncidentTimeline() {
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const response = await fetch(apiUrl('/api/incidents?limit=20'))
+          const response = await apiFetch('/api/incidents?limit=20')
           if (!response.ok) return
           setIncidents((await response.json()) as IncidentRow[])
         } catch {

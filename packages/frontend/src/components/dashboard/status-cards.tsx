@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { apiUrl } from '@/lib/api'
+import { apiFetch } from '@/lib/api'
 
 import { useSSE } from '@/hooks/use-sse'
 import { relativeTime, useNowTick } from '@/hooks/use-now'
@@ -63,8 +63,8 @@ export function StatusCards() {
     async function load() {
       try {
         const [collectorRes, priceRes] = await Promise.all([
-          fetch(apiUrl('/api/collectors')),
-          fetch(apiUrl('/api/prices')),
+          apiFetch('/api/collectors'),
+          apiFetch('/api/prices'),
         ])
         if (!collectorRes.ok || !priceRes.ok) return
         const [cols, rows] = await Promise.all([
@@ -96,7 +96,7 @@ export function StatusCards() {
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const response = await fetch(apiUrl('/api/incidents?limit=100'))
+          const response = await apiFetch('/api/incidents?limit=100')
           if (!response.ok) return
           setIncidents((await response.json()) as IncidentRow[])
         } catch {
@@ -111,7 +111,7 @@ export function StatusCards() {
     let cancelled = false
     async function load() {
       try {
-        const response = await fetch(apiUrl('/api/incidents?limit=100'))
+        const response = await apiFetch('/api/incidents?limit=100')
         if (!response.ok) return
         const rows = (await response.json()) as IncidentRow[]
         if (!cancelled) setIncidents(rows)

@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { apiUrl } from '@/lib/api'
+import { useApiStatus } from '@/hooks/use-api-status'
+import { apiFetch } from '@/lib/api'
 import { useSSE } from '@/hooks/use-sse'
 
 interface SimulateResponse {
@@ -44,6 +45,7 @@ export function Header() {
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [flash, setFlash] = useState<OutcomeFlash>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const apiStatus = useApiStatus()
 
   function flashOutcome(outcome: string | undefined): void {
     if (outcome !== 'APPROVED' && outcome !== 'ESCALATED') return
@@ -57,7 +59,7 @@ export function Header() {
     setSending(true)
     setFeedback(null)
     try {
-      const response = await fetch(apiUrl('/api/simulate-drift'), {
+      const response = await apiFetch('/api/simulate-drift', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ collectorKey: 'mumbai_apmc' }),
@@ -96,6 +98,29 @@ export function Header() {
           <p className="text-xs text-muted-foreground">scraping watchdog &amp; self-healing</p>
         </div>
         <div className="ml-auto flex items-center gap-3">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[11px] font-semibold tracking-wide ${
+              apiStatus === 'down'
+                ? 'border-failed/40 bg-failed/10 text-failed'
+                : 'border-healthy/30 bg-healthy/10 text-healthy'
+            }`}
+            title={
+              apiStatus === 'down'
+                ? 'A core API request (collectors/prices/incidents) recently failed'
+                : 'Core API requests are succeeding'
+            }
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                apiStatus === 'down'
+                  ? 'animate-heartbeat bg-failed'
+                  : apiStatus === 'up'
+                    ? 'bg-healthy'
+                    : 'bg-degraded'
+              }`}
+            />
+            {apiStatus === 'down' ? 'API UNREACHABLE' : 'API'}
+          </span>
           <HeartbeatDot />
           <Button
             onClick={() => void simulate()}

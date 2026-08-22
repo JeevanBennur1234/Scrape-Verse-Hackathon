@@ -66,6 +66,9 @@ app.get('/', async () => ({
   api: ['/api/collectors', '/api/prices', '/api/incidents', '/api/stream', '/api/simulate-drift'],
 }))
 
+// Liveness probe duplicated under /api so same-origin frontends behind the
+// Vite dev proxy (which forwards only /api/*) reach the real backend too.
+app.get('/api/health', async () => ({ status: 'ok' }))
 app.get('/health', async () => ({ status: 'ok' }))
 
 logRegistryState()

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { Card, CardContent } from '@/components/ui/card'
-import { apiUrl } from '@/lib/api'
+import { apiFetch } from '@/lib/api'
 
 interface PriceRow {
   id: string
@@ -27,7 +27,7 @@ export function PriceTicker() {
     let cancelled = false
     async function load() {
       try {
-        const response = await fetch(apiUrl('/api/prices'))
+        const response = await apiFetch('/api/prices')
         if (!response.ok) return
         const rows = (await response.json()) as PriceRow[]
         if (!cancelled) setPrices(rows)

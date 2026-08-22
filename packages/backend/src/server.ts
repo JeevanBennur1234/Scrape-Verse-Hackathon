@@ -26,6 +26,13 @@ await app.register(cors, { origin: frontendOrigins.length > 0 ? frontendOrigins 
 await app.register(apiRoutes, { prefix: '/api' })
 await app.register(simulateRoutes, { prefix: '/api' })
 
+app.get('/', async () => ({
+  status: 'ok',
+  service: 'mandipulse-backend',
+  health: '/health',
+  api: ['/api/collectors', '/api/prices', '/api/incidents', '/api/stream', '/api/simulate-drift'],
+}))
+
 app.get('/health', async () => ({ status: 'ok' }))
 
 logRegistryState()

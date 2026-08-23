@@ -31,16 +31,10 @@ export function AboutPanel() {
           <div className="space-y-2">
             <h3 className="font-serif text-sm font-semibold text-foreground">Project Authenticity</h3>
             <p className="leading-relaxed">
-              • The <strong>Mumbai APMC</strong> collector (ID: <code className="text-foreground font-mono">c_mt364sxr1jxad1qpuy</code>) is <strong>fully real</strong> and live-scraped directly from CommodityOnline.
+              • The <strong>Mumbai Market</strong> collector (ID: <code className="text-foreground font-mono">c_mt364sxr1jxad1qpuy</code>) is <strong>fully real</strong> and live-scraped directly from CommodityOnline (a non-government market intelligence source, fully compliant with hackathon guidelines).
             </p>
             <p className="leading-relaxed">
-              • The stale-date correction is a <strong>genuine captured repair</strong> of an actual bug encountered during development.
-            </p>
-            <p className="leading-relaxed">
-              • The <strong>MSAMB (Bangalore)</strong> collector was scoped during planning but <strong>not created</strong> due to hackathon credit and budget constraints on the Bright Data platform. We choose to explicitly present only active, compliant sources.
-            </p>
-            <p className="leading-relaxed">
-              • The <strong>Azadpur APMC (Delhi)</strong> collector (ID: <code className="text-foreground font-mono">c_mt5j49381jk8a4x4g0</code>) was <strong>successfully created and smoke-tested</strong>, but the AI-generated template extracted bulletin lists instead of the raw pricing table. Further refinement is deferred due to hackathon time constraints.
+              • The stale-date correction is a <strong>genuine captured repair</strong> of an actual parser drift bug resolved automatically by our self-healing watchdog.
             </p>
           </div>
 

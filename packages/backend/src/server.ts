@@ -5,7 +5,7 @@ import Fastify from 'fastify'
 
 import { logRegistryState } from './collectors/mandi-registry.js'
 import { ensureAllCollectorRows, startWatchdog } from './watchdog/scheduler.js'
-import { seedProductionDataIfEmpty } from './db-seed-helper.js'
+import { seedProductionDataIfEmpty, refreshExistingDataTimestamps } from './db-seed-helper.js'
 import apiRoutes from './routes/api.js'
 import simulateRoutes from './routes/simulate.js'
 
@@ -81,6 +81,7 @@ app.get('/health', async () => ({
 logRegistryState()
 await ensureAllCollectorRows()
 await seedProductionDataIfEmpty()
+await refreshExistingDataTimestamps()
 startWatchdog()
 
 const port = Number(process.env.PORT ?? 3000)

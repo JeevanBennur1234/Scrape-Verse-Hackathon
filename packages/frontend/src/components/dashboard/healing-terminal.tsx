@@ -31,22 +31,22 @@ function lineFor(event: SseEvent): { text: string; className: string } | null {
   switch (event.type) {
     case "incident.simulated":
     case "drift.simulated":
-      return { text: "Drift detected on the Mumbai board", className: "text-simulated" };
+      return { text: `[SYSTEM] Scraper schema drift detected (out-of-bounds report date on Mumbai board)`, className: "text-simulated" };
     case "heal.started":
-      return { text: "Heal started", className: "text-healing" };
+      return { text: `[WATCHDOG] Initiating self-healing protocol...`, className: "text-healing" };
     case "heal.cli.started":
-      return { text: "bdata scraper heal", className: "text-healing" };
+      return { text: `[CLI] npx @brightdata/cli bdata scraper heal c_mt364sxr1jxad1qpuy`, className: "text-healing" };
     case "heal.cli.completed":
-      return { text: "Repair preview ready", className: "text-healthy" };
+      return { text: `[CLI] Scraper heal successful. Generated repair schema preview.`, className: "text-healthy" };
     case "heal.graded":
       return {
-        text: `Grade ${String(p.score)} ${p.approved ? "PASS" : "FAIL"}`,
+        text: `[GRADER] Grade ${Number(p.score).toFixed(2)} ${p.approved ? "PASS (all validation gates passed, calling scraper approve)" : `FAIL (hard gate failed: ${p.hardGateFailed ?? "bounds check"})`}`,
         className: p.approved ? "text-healthy" : "text-failed",
       };
     case "heal.recovered":
-      return { text: "Recovered — collector restored", className: "text-healthy" };
+      return { text: `[DEPLOYER] Scraper approved. Applied repair settings with zero downtime.`, className: "text-healthy" };
     case "heal.escalated":
-      return { text: `Escalated — ${String(p.reason ?? "grade failed")}`, className: "text-failed" };
+      return { text: `[ALERT] Repair escalated: human intervention required (${String(p.reason ?? "grading check failed")})`, className: "text-failed" };
     default:
       return null;
   }

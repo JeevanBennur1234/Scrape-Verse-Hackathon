@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useSSE } from "@/hooks/use-sse";
-import { Play, ShieldAlert, Cpu, CheckCircle2, AlertTriangle, Activity } from "lucide-react";
+import { ShieldAlert, Cpu, CheckCircle2, AlertTriangle, Activity, ArrowRight, ArrowDown } from "lucide-react";
 
 type Stage = "ingest" | "anomaly" | "heal" | "verify" | "recovered" | "escalated";
 
@@ -74,7 +74,7 @@ export function HealingPipeline() {
     },
     {
       id: "verify",
-      name: "4. Grader Gate",
+      name: "4. Repair / Grader",
       icon: CheckCircle2,
       color: "text-purple-500 bg-purple-500/10 border-purple-500/30",
       activeColor: "bg-purple-500 border-purple-400 text-black shadow-[0_0_15px_rgba(168,85,247,0.5)] animate-pulse",
@@ -82,7 +82,7 @@ export function HealingPipeline() {
     },
     {
       id: "recovered",
-      name: "5. Recovered",
+      name: "5. Restored & Deployed",
       icon: CheckCircle2,
       color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/30",
       activeColor: "bg-emerald-500 border-emerald-400 text-black shadow-[0_0_15px_rgba(16,185,129,0.7)]",
@@ -102,7 +102,7 @@ export function HealingPipeline() {
         </span>
       </div>
 
-      <div className="flex flex-col items-stretch gap-2.5 relative">
+      <div className="flex flex-col md:flex-row md:items-stretch items-center gap-3 relative w-full">
         {stagesDef.map((stage, idx) => {
           const Icon = stage.id === "recovered" && activeStage === "escalated" ? AlertTriangle : stage.icon;
           const isCurrent = activeStage === stage.id || (stage.id === "recovered" && activeStage === "escalated");
@@ -116,21 +116,28 @@ export function HealingPipeline() {
           const stageDesc = stage.id === "recovered" && activeStage === "escalated" ? "Scraper failed checks and requires developer override." : stage.desc;
 
           return (
-            <div key={stage.id} className="flex flex-col items-center gap-2.5 z-10 w-full">
-              <div className={`w-full border rounded-lg p-3 transition-all duration-300 ${cardStyle}`}>
+            <div key={stage.id} className="flex flex-col md:flex-row items-center gap-3 z-10 w-full md:w-auto md:flex-1">
+              <div className={`w-full border rounded-lg p-3 transition-all duration-300 ${cardStyle} min-h-[90px] flex flex-col justify-center`}>
                 <div className="flex items-center gap-2">
                   <Icon className="size-4 shrink-0" />
                   <span className="font-mono text-xs font-bold leading-none">{stageName}</span>
                 </div>
-                <p className={`text-[10px] mt-1 leading-snug ${isCurrent ? "text-black/80 dark:text-black/80 font-medium" : "text-muted-foreground"}`}>
+                <p className={`text-[10px] mt-1.5 leading-snug ${isCurrent ? "text-black/80 dark:text-black/80 font-medium" : "text-muted-foreground"}`}>
                   {stageDesc}
                 </p>
               </div>
 
               {idx < stagesDef.length - 1 && (
-                <div className="text-muted-foreground/30 rotate-90 my-0.5">
-                  <Play className="size-3 fill-current" />
-                </div>
+                <>
+                  {/* Desktop arrow */}
+                  <div className="hidden md:flex text-muted-foreground/30 shrink-0">
+                    <ArrowRight className="size-4" />
+                  </div>
+                  {/* Mobile arrow */}
+                  <div className="flex md:hidden text-muted-foreground/30 shrink-0 my-1">
+                    <ArrowDown className="size-4" />
+                  </div>
+                </>
               )}
             </div>
           );

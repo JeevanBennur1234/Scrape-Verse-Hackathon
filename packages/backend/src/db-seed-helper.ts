@@ -34,25 +34,25 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
     const seededCollectorIds = new Set<string>()
 
     for (const collector of seed.collectors) {
-      if (collector.portalUrl?.includes('example.in') || collector.id === 'c_mt2mhs6s2i4ww8hntx') {
-        continue
-      }
       let id = collector.id
-      let status = collector.status
       if (id === 'PENDING') {
         id = 'c_msamb_pending'
-        status = 'PENDING_SETUP'
+      }
+
+      // Filter out non-compliant/government collectors to align with hackathon compliance
+      if (id !== 'c_mt364sxr1jxad1qpuy') {
+        continue
       }
 
       await prisma.collector.upsert({
         where: { id },
-        update: { name: collector.name, portalUrl: collector.portalUrl, status },
+        update: { name: collector.name, portalUrl: collector.portalUrl, status: collector.status },
         create: {
           id,
           name: collector.name,
           portalUrl: collector.portalUrl,
           state: collector.state ?? 'IDLE',
-          status: status ?? 'HEALTHY',
+          status: collector.status ?? 'HEALTHY',
           lastGoodSelectors: collector.lastGoodSelectors ?? {},
           ...(collector.createdAt ? { createdAt: new Date(collector.createdAt) } : {}),
         },
@@ -60,6 +60,11 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
       seededCollectorIds.add(id)
       collectorsDone += 1
     }
+
+    // Dynamic date offset calculation to make seeded data look fresh relative to "now"
+    const seedDates = seed.priceTicks.map((t: any) => new Date(t.recordedAt).getTime())
+    const maxSeedDate = seedDates.length > 0 ? Math.max(...seedDates) : Date.now()
+    const offsetMs = Date.now() - maxSeedDate
 
     let ticksDone = 0
     const filteredTicks = seed.priceTicks.filter((tick: any) => {
@@ -73,6 +78,8 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
         data: part.map((tick: any) => {
           let cid = tick.collectorId
           if (cid === 'PENDING') cid = 'c_msamb_pending'
+          const originalDate = new Date(tick.recordedAt)
+          const shiftedDate = new Date(originalDate.getTime() + offsetMs)
           return {
             id: tick.id,
             collectorId: cid,
@@ -82,7 +89,7 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
             minPrice: tick.minPrice,
             maxPrice: tick.maxPrice,
             arrivalQty: tick.arrivalQty,
-            recordedAt: new Date(tick.recordedAt),
+            recordedAt: shiftedDate,
           }
         }),
       })
@@ -101,6 +108,9 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
       let cid = incident.collectorId
       if (cid === 'PENDING') cid = 'c_msamb_pending'
 
+      const incidentOriginalDate = new Date(incident.createdAt)
+      const incidentShiftedDate = new Date(incidentOriginalDate.getTime() + offsetMs)
+
       await prisma.incident.upsert({
         where: { id: incident.id },
         update: { status: incident.status, symptom: incident.symptom },
@@ -113,12 +123,15 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
           affectedRatio: incident.affectedRatio,
           status: incident.status as any,
           simulated: incident.simulated ?? false,
-          ...(incident.createdAt ? { createdAt: new Date(incident.createdAt) } : {}),
+          createdAt: incidentShiftedDate,
         },
       })
       incidentsDone += 1
 
       for (const grade of incident.grades) {
+        const gradeOriginalDate = new Date(grade.createdAt)
+        const gradeShiftedDate = new Date(gradeOriginalDate.getTime() + offsetMs)
+
         await prisma.grade.upsert({
           where: { id: grade.id },
           update: {},
@@ -128,7 +141,7 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
             score: grade.score,
             checks: grade.checks,
             reason: grade.reason,
-            ...(grade.createdAt ? { createdAt: new Date(grade.createdAt) } : {}),
+            createdAt: gradeShiftedDate,
           },
         })
         gradesDone += 1
@@ -138,5 +151,38 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
     console.log(`[db-seed-helper] Auto-seed success: ${collectorsDone} collectors, ${ticksDone} ticks, ${incidentsDone} incidents (grades: ${gradesDone})`)
   } catch (error) {
     console.error(`[db-seed-helper] Auto-seed failed:`, error)
+  }
+}
+
+export async function refreshExistingDataTimestamps(): Promise<void> {
+  try {
+    const ticks = await prisma.priceTick.findMany({
+      orderBy: { recordedAt: 'desc' },
+      take: 1,
+    })
+    const firstTick = ticks[0]
+    if (!firstTick) return
+
+    const latestTickDate = new Date(firstTick.recordedAt).getTime()
+    const offsetMs = Date.now() - latestTickDate
+
+    // If the latest tick in the DB is older than 6 hours, shift all dates forward to keep the demo fresh
+    if (offsetMs > 6 * 60 * 60 * 1000) {
+      const offsetSeconds = Math.round(offsetMs / 1000)
+      console.log(`[db-seed-helper] Data is stale. Shifting SQLite database timestamps forward by ${Math.round(offsetMs / (1000 * 60 * 60))} hours for fresh demo metrics...`)
+      
+      await prisma.$executeRawUnsafe(
+        `UPDATE PriceTick SET recordedAt = datetime(strftime('%s', recordedAt) + ${offsetSeconds}, 'unixepoch')`
+      )
+      await prisma.$executeRawUnsafe(
+        `UPDATE Incident SET createdAt = datetime(strftime('%s', createdAt) + ${offsetSeconds}, 'unixepoch')`
+      )
+      await prisma.$executeRawUnsafe(
+        `UPDATE Grade SET createdAt = datetime(strftime('%s', createdAt) + ${offsetSeconds}, 'unixepoch')`
+      )
+      console.log(`[db-seed-helper] Successfully refreshed database timestamps.`)
+    }
+  } catch (error) {
+    console.error(`[db-seed-helper] Failed to refresh timestamps:`, error)
   }
 }

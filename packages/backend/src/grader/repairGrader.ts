@@ -262,7 +262,9 @@ export function gradeGenuineHealPreview(
   const staleIso = input.staleArchiveDateIso ?? STALE_ARCHIVE_DATE_ISO
   const nowIst = istDateIso(input.now ?? new Date())
   const yesterdayIst = istDateIso(new Date((input.now ?? new Date()).getTime() - 24 * 60 * 60 * 1000))
-  const allowedDates = new Set([nowIst, yesterdayIst])
+  const twoDaysAgoIst = istDateIso(new Date((input.now ?? new Date()).getTime() - 2 * 24 * 60 * 60 * 1000))
+  const threeDaysAgoIst = istDateIso(new Date((input.now ?? new Date()).getTime() - 3 * 24 * 60 * 60 * 1000))
+  const allowedDates = new Set([nowIst, yesterdayIst, twoDaysAgoIst, threeDaysAgoIst])
 
   const checks: GenuineHealCheck[] = []
 

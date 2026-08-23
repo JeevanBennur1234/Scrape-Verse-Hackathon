@@ -92,21 +92,23 @@ function Dashboard() {
         onSimulate={(scenario) => void onSimulate(scenario)}
       />
       <PriceTicker prices={board.prices} />
-      <main className="mx-auto grid w-full max-w-6xl flex-1 gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <AboutPanel />
-          <QuickInsights prices={board.prices} collectors={board.collectors} />
-          <StatusCards collectors={board.collectors} prices={board.prices} loading={board.loading} />
-          <MandiTable prices={board.prices} loading={board.loading} />
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-            <InteractiveCharts prices={board.prices} loading={board.loading} />
-            <PriceComparison prices={board.prices} loading={board.loading} />
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 sm:px-6 space-y-4">
+        <HealingPipeline />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <AboutPanel />
+            <QuickInsights prices={board.prices} collectors={board.collectors} />
+            <StatusCards collectors={board.collectors} prices={board.prices} loading={board.loading} />
+            <MandiTable prices={board.prices} loading={board.loading} />
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+              <InteractiveCharts prices={board.prices} loading={board.loading} />
+              <PriceComparison prices={board.prices} loading={board.loading} />
+            </div>
           </div>
-        </div>
-        <div className="flex min-w-0 flex-col gap-4">
-          <HealingPipeline />
-          <HealingTerminal />
-          <IncidentTimeline incidents={board.incidents} />
+          <div className="flex min-w-0 flex-col gap-4">
+            <HealingTerminal />
+            <IncidentTimeline incidents={board.incidents} />
+          </div>
         </div>
       </main>
       <footer className="mt-auto border-t border-border py-4 bg-muted/20">

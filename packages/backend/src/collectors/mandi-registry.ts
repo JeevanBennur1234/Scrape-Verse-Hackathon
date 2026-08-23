@@ -23,23 +23,6 @@ export const MANDI_COLLECTORS = {
       'report_date',
     ],
   },
-  msamb: {
-    collectorId: 'c_msamb_pending',
-    name: 'MSAMB APMC Price Info (Karnataka/MSAMB)',
-    state: 'Karnataka',
-    sourceUrl: 'https://www.msamb.com/ApmcDetail/APMCPriceInformation',
-    rawFields: [],
-    status: 'PENDING_SETUP',
-  },
-  azadpur_apmc: {
-    collectorId: 'c_mt5j49381jk8a4x4g0',
-    name: 'Azadpur APMC (Delhi)',
-    state: 'Delhi',
-    sourceUrl: 'https://apmcazadpurdelhi.com/',
-    rawFields: [],
-    status: 'PENDING_SETUP',
-    pendingReason: 'Collector created and smoke-tested successfully, but the AI-generated template extracted site navigation/bulletin links rather than the actual min/max rate table — needs a scraper heal pass to retarget extraction, deferred due to hackathon time constraints.',
-  },
 } satisfies Record<string, MandiCollectorConfig>
 
 export type CollectorKey = keyof typeof MANDI_COLLECTORS

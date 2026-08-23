@@ -2,6 +2,8 @@
 
 MandiPulse is a wholesale agricultural intelligence platform equipped with automated watchdog surveillance and **self-healing AI scraper repair**. Powered by **Bright Data Scraper Studio**, the system continuously monitors data ingestion, detects schema drift, null price spikes, or extreme price outliers, and programmatically triggers the `@brightdata/cli` self-healing engine to repair crawler logic with zero downtime.
 
+![MandiPulse Dashboard Preview](images/dashboard_preview.png)
+
 ---
 
 ### 🚀 Live Submission Links

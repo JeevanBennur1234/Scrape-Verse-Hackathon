@@ -2,7 +2,7 @@ import { fastifySSE } from '@fastify/sse'
 import type { FastifyInstance } from 'fastify'
 
 import { prisma } from '../db.js'
-import { partitionCollectors, COLLECTORS, hasRealCollectorId } from '../collectors/mandi-registry.js'
+import { COLLECTORS, hasRealCollectorId } from '../collectors/mandi-registry.js'
 import { eventBus, type StructuredEvent } from '../events/pubsub.js'
 
 const INCIDENT_STATUSES = ['DETECTED', 'HEALING', 'GRADED', 'RECOVERED', 'ESCALATED'] as const
@@ -28,52 +28,16 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
     })
 
     const registeredIds = new Set(COLLECTORS.map((c) => c.collectorId))
-    const allowedIds = new Set([...registeredIds, 'PENDING'])
 
-    let filteredRows = dbRows.filter((r) => allowedIds.has(r.id))
-    
-    const hasCMsambPending = filteredRows.some((r) => r.id === 'c_msamb_pending')
-    if (hasCMsambPending) {
-      filteredRows = filteredRows.filter((r) => r.id !== 'PENDING')
-    } else {
-      filteredRows = filteredRows.map((r) => {
-        if (r.id === 'PENDING') {
-          return { ...r, id: 'c_msamb_pending', status: 'PENDING_SETUP' }
-        }
-        return r
-      })
-    }
+    const filteredRows = dbRows.filter(
+      (r) =>
+        registeredIds.has(r.id) &&
+        r.id !== 'c_msamb_pending' &&
+        r.id !== 'PENDING' &&
+        r.status !== 'PENDING_SETUP',
+    )
 
-    filteredRows = filteredRows.map((r) => {
-      if (r.id === 'c_msamb_pending') {
-        return { ...r, status: 'PENDING_SETUP' }
-      }
-      return r
-    })
-
-    const { pending } = partitionCollectors()
-    const dbIds = new Set(filteredRows.map((r) => r.id))
-    const dbNames = new Set(filteredRows.map((r) => r.name.toLowerCase()))
-    const dbUrls = new Set(filteredRows.map((r) => r.portalUrl ? r.portalUrl.toLowerCase() : ''))
-
-    const pendingEntries = pending
-      .filter((c) => {
-        if (dbIds.has(c.collectorId)) return false
-        if (dbNames.has(c.name.toLowerCase())) return false
-        if (dbUrls.has(c.sourceUrl.toLowerCase())) return false
-        return true
-      })
-      .map((c) => ({
-        id: c.collectorId,
-        name: c.name,
-        portalUrl: c.sourceUrl,
-        state: 'IDLE',
-        status: 'PENDING_SETUP',
-        lastGoodSelectors: {},
-        _count: { priceTicks: 0, incidents: 0 },
-      }))
-
-    return [...filteredRows, ...pendingEntries]
+    return filteredRows
   })
 
   app.get<{ Querystring: PricesQuery }>('/prices', async (request) => {

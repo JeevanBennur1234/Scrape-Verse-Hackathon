@@ -160,7 +160,6 @@ export function normalizeMsambRow(raw: unknown): PriceTickInput {
 
 const MAPPERS: Record<CollectorKey, (raw: unknown) => PriceTickInput> = {
   mumbai_apmc: normalizeMumbaiRow,
-  msamb: normalizeMsambRow,
 }
 
 export function normalize(collectorKey: CollectorKey, rawRow: unknown): PriceTickInput {

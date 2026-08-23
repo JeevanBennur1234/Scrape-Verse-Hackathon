@@ -21,20 +21,6 @@ export const MANDI_COLLECTORS = {
       'report_date',
     ],
   },
-  msamb: {
-    collectorId: 'c_msamb_pending',
-    name: 'Bangalore Market (CommodityOnline)',
-    state: 'Karnataka',
-    sourceUrl: 'https://www.commodityonline.com/mandi-prices/karnataka/bangalore',
-    rawFields: [
-      'commodity',
-      'market',
-      'min_price',
-      'max_price',
-      'modal_price',
-      'report_date',
-    ],
-  },
 } satisfies Record<string, MandiCollectorConfig>
 
 export type CollectorKey = keyof typeof MANDI_COLLECTORS

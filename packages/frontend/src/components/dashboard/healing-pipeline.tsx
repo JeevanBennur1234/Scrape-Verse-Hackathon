@@ -102,7 +102,7 @@ export function HealingPipeline() {
         </span>
       </div>
 
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 relative">
+      <div className="flex flex-col items-stretch gap-2.5 relative">
         {stagesDef.map((stage, idx) => {
           const Icon = stage.id === "recovered" && activeStage === "escalated" ? AlertTriangle : stage.icon;
           const isCurrent = activeStage === stage.id || (stage.id === "recovered" && activeStage === "escalated");
@@ -116,7 +116,7 @@ export function HealingPipeline() {
           const stageDesc = stage.id === "recovered" && activeStage === "escalated" ? "Scraper failed checks and requires developer override." : stage.desc;
 
           return (
-            <div key={stage.id} className="flex-1 flex flex-col lg:flex-row items-center gap-3 z-10">
+            <div key={stage.id} className="flex flex-col items-center gap-2.5 z-10 w-full">
               <div className={`w-full border rounded-lg p-3 transition-all duration-300 ${cardStyle}`}>
                 <div className="flex items-center gap-2">
                   <Icon className="size-4 shrink-0" />
@@ -128,7 +128,7 @@ export function HealingPipeline() {
               </div>
 
               {idx < stagesDef.length - 1 && (
-                <div className="hidden lg:block text-muted-foreground/30">
+                <div className="text-muted-foreground/30 rotate-90 my-0.5">
                   <Play className="size-3 fill-current" />
                 </div>
               )}

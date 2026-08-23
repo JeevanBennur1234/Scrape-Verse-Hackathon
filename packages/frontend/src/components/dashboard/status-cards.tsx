@@ -60,12 +60,18 @@ export function StatusCards({
 
       {/* Collector Status Cards */}
       <div className="grid gap-3 sm:grid-cols-2">
-        {collectors.length === 0 ? (
-          <p className="col-span-2 rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground text-center">
-            No collectors in the registry.
-          </p>
-        ) : (
-          collectors.map((collector) => {
+        {(() => {
+          const activeCollectors = collectors.filter(
+            (c) => c.id !== "c_msamb_pending" && c.status !== "PENDING_SETUP"
+          );
+          if (activeCollectors.length === 0) {
+            return (
+              <p className="col-span-2 rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground text-center">
+                No active collectors.
+              </p>
+            );
+          }
+          return activeCollectors.map((collector) => {
             const ticks = prices.filter((p) => p.collectorId === collector.id);
             const newest = ticks[0];
             const pending = collector.status === "PENDING_SETUP";
@@ -114,7 +120,7 @@ export function StatusCards({
               </article>
             );
           })
-        )}
+        })()}
       </div>
     </div>
   );

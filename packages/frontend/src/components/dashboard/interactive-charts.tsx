@@ -207,7 +207,7 @@ export function InteractiveCharts({ prices, loading }: { prices: PriceRow[]; loa
           <h2 className="font-serif text-xl font-medium">Price Spot Trends</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Average daily wholesale rates historical flow</p>
           <div className="flex items-center gap-1.5 mt-1.5 text-[10px] font-mono text-muted-foreground">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
             <span>Average Price (₹/Quintal)</span>
           </div>
         </div>
@@ -239,8 +239,8 @@ export function InteractiveCharts({ prices, loading }: { prices: PriceRow[]; loa
           >
             <defs>
               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+                <stop offset="0%" stopColor="#10b981" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
               </linearGradient>
             </defs>
 
@@ -306,7 +306,7 @@ export function InteractiveCharts({ prices, loading }: { prices: PriceRow[]; loa
             {/* Trend line (Smooth curve) */}
             <path
               d={linePath}
-              className="stroke-blue-500"
+              className="stroke-emerald-500"
               strokeWidth="2"
               strokeLinecap="round"
               fill="none"
@@ -319,7 +319,7 @@ export function InteractiveCharts({ prices, loading }: { prices: PriceRow[]; loa
                 cx={getX(i)}
                 cy={getY(d.avgPrice)}
                 r="3.5"
-                className="fill-background stroke-blue-500 stroke-[2px] transition-all cursor-pointer"
+                className="fill-background stroke-emerald-500 stroke-[2px] transition-all cursor-pointer"
               />
             ))}
 
@@ -330,7 +330,7 @@ export function InteractiveCharts({ prices, loading }: { prices: PriceRow[]; loa
                 y1={paddingTop}
                 x2={tooltipPos.x}
                 y2={height - paddingBottom}
-                className="stroke-blue-400/40"
+                className="stroke-emerald-400/40"
                 strokeWidth="1.5"
                 strokeDasharray="2 2"
               />
@@ -342,7 +342,7 @@ export function InteractiveCharts({ prices, loading }: { prices: PriceRow[]; loa
                 cx={tooltipPos.x}
                 cy={tooltipPos.y}
                 r="5.5"
-                className="fill-blue-500 stroke-background stroke-[2px]"
+                className="fill-emerald-500 stroke-background stroke-[2px]"
               />
             )}
           </svg>

@@ -141,7 +141,7 @@ export function PriceComparison({ prices, loading }: { prices: PriceRow[]; loadi
           {/* Relative Modal Price Bar Comparison */}
           <div className="rounded-lg border border-border bg-muted/10 p-4 space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">Relative Modal Price Bar Comparison</h4>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {(() => {
                 const itemsToCompare = [
                   ...matchingPrices.map((p) => ({
@@ -167,14 +167,14 @@ export function PriceComparison({ prices, loading }: { prices: PriceRow[]; loadi
                 return itemsToCompare.map((item) => {
                   const percent = (item.price / maxPrice) * 100;
                   return (
-                    <div key={item.id} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className={`font-medium ${item.isBenchmark ? "text-muted-foreground italic font-normal" : "text-foreground"}`}>
-                          {item.label}
+                    <div key={item.id} className="space-y-2 bg-background/40 p-3 rounded-lg border border-border/50">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className={`font-mono text-[10px] uppercase tracking-wider ${item.isBenchmark ? "text-muted-foreground italic font-normal" : "text-foreground font-bold"}`}>
+                          {item.isBenchmark ? "Benchmark Average" : "Mandi Rate"}
                         </span>
                         <span className="font-mono font-bold text-foreground">{formatInr(item.price)}</span>
                       </div>
-                      <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+                      <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${
                             item.isBenchmark ? "bg-[var(--color-healing)]" : "bg-[var(--color-healthy)]"
@@ -182,6 +182,7 @@ export function PriceComparison({ prices, loading }: { prices: PriceRow[]; loadi
                           style={{ width: `${percent}%` }}
                         />
                       </div>
+                      <p className="text-[10px] text-muted-foreground truncate">{item.label}</p>
                     </div>
                   );
                 });

@@ -36,14 +36,17 @@ export function Header({ reachable, sending, notice, noticeKind, onSimulate }: P
 
   return (
     <>
+      <div className="bg-gradient-to-r from-blue-900/50 via-blue-600/30 to-blue-900/50 border-b border-blue-500/30 text-center py-2 px-4 text-[10.5px] font-mono tracking-wider text-blue-200">
+        ⚡ Custom Self-Healing Scrapers Powered by <span className="text-white font-bold">Bright Data Scraper Studio</span> Active
+      </div>
       <header className="border-b border-border bg-card/35 backdrop-blur-md sticky top-0 z-40">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
           <div className="min-w-0">
-            <div className="mb-1 flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
               <span>Into the Scrape-Verse</span>
               <span className="text-border">|</span>
-              <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-sans font-semibold tracking-normal lowercase select-none">
-                powered by Bright Data Scraper Studio (Self-Healing AI)
+              <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-sans font-bold tracking-normal uppercase text-[9px] select-none">
+                Bright Data Studio Stack
               </span>
             </div>
             <h1 className="font-serif text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">

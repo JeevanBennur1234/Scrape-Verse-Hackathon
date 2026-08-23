@@ -22,8 +22,6 @@ import { buildStaleArchiveHealDiagnosis } from '../watchdog/healingEngine.js'
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const BACKEND_ROOT = path.resolve(MODULE_DIR, '..', '..')
 const PROOF_PATH = path.join(BACKEND_ROOT, 'seed-data', 'genuine-heal-mumbai.json')
-
-const SIMULATED_DRIFT_KIND = 'STALE_ARCHIVE_DATE'
 const LIVE_CLI_TIMEOUT_SECONDS = 15
 const LIVE_CLI_TIMEOUT_MS = LIVE_CLI_TIMEOUT_SECONDS * 1000
 

@@ -23,9 +23,12 @@ export function Header({ reachable, sending, notice, noticeKind, onSimulate }: P
   useEffect(() => {
     apiFetch('/api/health')
       .then((res) => res.json())
-      .then((data: any) => {
-        if (data && typeof data.watchdogEnabled === 'boolean') {
-          setWatchdogEnabled(data.watchdogEnabled);
+      .then((data: unknown) => {
+        if (data && typeof data === 'object' && 'watchdogEnabled' in data) {
+          const enabled = (data as Record<string, unknown>).watchdogEnabled;
+          if (typeof enabled === 'boolean') {
+            setWatchdogEnabled(enabled);
+          }
         }
       })
       .catch(() => {});

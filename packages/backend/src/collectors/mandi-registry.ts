@@ -4,6 +4,8 @@ export interface MandiCollectorConfig {
   state: string
   sourceUrl: string
   rawFields: string[]
+  status?: string
+  pendingReason?: string
 }
 
 export const MANDI_COLLECTORS = {
@@ -20,6 +22,23 @@ export const MANDI_COLLECTORS = {
       'modal_price',
       'report_date',
     ],
+  },
+  msamb: {
+    collectorId: 'c_msamb_pending',
+    name: 'MSAMB APMC Price Info (Karnataka/MSAMB)',
+    state: 'Karnataka',
+    sourceUrl: 'https://www.msamb.com/ApmcDetail/APMCPriceInformation',
+    rawFields: [],
+    status: 'PENDING_SETUP',
+  },
+  azadpur_apmc: {
+    collectorId: 'c_mt5j49381jk8a4x4g0',
+    name: 'Azadpur APMC (Delhi)',
+    state: 'Delhi',
+    sourceUrl: 'https://apmcazadpurdelhi.com/',
+    rawFields: [],
+    status: 'PENDING_SETUP',
+    pendingReason: 'Collector created and smoke-tested successfully, but the AI-generated template extracted site navigation/bulletin links rather than the actual min/max rate table — needs a scraper heal pass to retarget extraction, deferred due to hackathon time constraints.',
   },
 } satisfies Record<string, MandiCollectorConfig>
 
@@ -47,7 +66,9 @@ export const COLLECTORS: CollectorDefinition[] = (
 ).map(([key, config]) => toDefinition(key, config))
 
 export function hasRealCollectorId(definition: CollectorDefinition): boolean {
-  return REAL_COLLECTOR_ID_PATTERN.test(definition.collectorId) && definition.collectorId !== 'c_msamb_pending'
+  return REAL_COLLECTOR_ID_PATTERN.test(definition.collectorId) && 
+         definition.collectorId !== 'c_msamb_pending' &&
+         definition.status !== 'PENDING_SETUP'
 }
 
 export interface PartitionedCollectors {

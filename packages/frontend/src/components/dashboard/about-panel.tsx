@@ -39,6 +39,9 @@ export function AboutPanel() {
             <p className="leading-relaxed">
               • The <strong>MSAMB (Bangalore)</strong> collector was scoped during planning but <strong>not created</strong> due to hackathon credit and budget constraints on the Bright Data platform. We choose to explicitly present only active, compliant sources.
             </p>
+            <p className="leading-relaxed">
+              • The <strong>Azadpur APMC (Delhi)</strong> collector (ID: <code className="text-foreground font-mono">c_mt5j49381jk8a4x4g0</code>) was <strong>successfully created and smoke-tested</strong>, but the AI-generated template extracted bulletin lists instead of the raw pricing table. Further refinement is deferred due to hackathon time constraints.
+            </p>
           </div>
 
           <hr className="border-border/30" />

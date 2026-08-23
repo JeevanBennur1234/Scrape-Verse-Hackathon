@@ -2,7 +2,7 @@ import { fastifySSE } from '@fastify/sse'
 import type { FastifyInstance } from 'fastify'
 
 import { prisma } from '../db.js'
-import { COLLECTORS, hasRealCollectorId } from '../collectors/mandi-registry.js'
+import { COLLECTORS, hasRealCollectorId, partitionCollectors } from '../collectors/mandi-registry.js'
 import { eventBus, type StructuredEvent } from '../events/pubsub.js'
 
 const INCIDENT_STATUSES = ['DETECTED', 'HEALING', 'GRADED', 'RECOVERED', 'ESCALATED'] as const
@@ -37,7 +37,23 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
         r.status !== 'PENDING_SETUP',
     )
 
-    return filteredRows
+    const { pending } = partitionCollectors()
+    const dbIds = new Set(dbRows.map((r) => r.id))
+
+    const pendingEntries = pending
+      .filter((c) => !dbIds.has(c.collectorId))
+      .map((c) => ({
+        id: c.collectorId,
+        name: c.name,
+        portalUrl: c.sourceUrl,
+        state: 'IDLE',
+        status: c.status || 'PENDING_SETUP',
+        pendingReason: c.pendingReason,
+        lastGoodSelectors: {},
+        _count: { priceTicks: 0, incidents: 0 },
+      }))
+
+    return [...filteredRows, ...pendingEntries]
   })
 
   app.get<{ Querystring: PricesQuery }>('/prices', async (request) => {
@@ -127,7 +143,7 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
   })
 }
 
-function streamHealEvents(): AsyncGenerator<{ id: string; data: any }> {
+function streamHealEvents(): AsyncGenerator<{ id: string; data: StructuredEvent }> {
   return (async function* () {
     for await (const event of eventBus.streamAllWithReplay()) {
       yield serializeEvent(event)
@@ -135,7 +151,7 @@ function streamHealEvents(): AsyncGenerator<{ id: string; data: any }> {
   })()
 }
 
-function serializeEvent(event: StructuredEvent): { id: string; data: any } {
+function serializeEvent(event: StructuredEvent): { id: string; data: StructuredEvent } {
   return {
     id: event.id,
     data: event,

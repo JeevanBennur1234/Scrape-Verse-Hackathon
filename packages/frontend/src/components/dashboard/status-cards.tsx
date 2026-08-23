@@ -61,17 +61,15 @@ export function StatusCards({
       {/* Collector Status Cards */}
       <div className="grid gap-3 sm:grid-cols-2">
         {(() => {
-          const activeCollectors = collectors.filter(
-            (c) => c.id !== "c_msamb_pending" && c.status !== "PENDING_SETUP"
-          );
-          if (activeCollectors.length === 0) {
+          const displayCollectors = collectors;
+          if (displayCollectors.length === 0) {
             return (
               <p className="col-span-2 rounded-xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground text-center">
-                No active collectors.
+                No collectors.
               </p>
             );
           }
-          return activeCollectors.map((collector) => {
+          return displayCollectors.map((collector) => {
             const ticks = prices.filter((p) => p.collectorId === collector.id);
             const newest = ticks[0];
             const pending = collector.status === "PENDING_SETUP";
@@ -94,7 +92,9 @@ export function StatusCards({
                 </div>
                 <div className="mt-3 pt-3 border-t border-border/50">
                   {pending ? (
-                    <p className="text-xs text-muted-foreground">Awaiting collector creation via Bright Data API.</p>
+                    <p className="text-xs text-muted-foreground">
+                      {collector.pendingReason ? collector.pendingReason : "Awaiting collector creation via Bright Data API."}
+                    </p>
                   ) : newest ? (
                     <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
                       <div className="flex items-center justify-between">

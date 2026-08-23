@@ -91,6 +91,9 @@ async function runBdataCommand(
   const logPath = path.join(LOGS_DIR, `${logLabel}-${timestampSlug()}.log`)
   const timeoutSeconds = options.timeoutSeconds ?? DEFAULT_CLI_TIMEOUT_SECONDS
   const stream = createWriteStream(logPath, { encoding: 'utf8' })
+  await new Promise<void>((resolve) => {
+    stream.once('open', () => resolve())
+  })
 
   let exitCode: number | null = null
   let timedOut = false

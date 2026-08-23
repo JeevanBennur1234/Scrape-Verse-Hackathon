@@ -158,7 +158,7 @@ export function normalizeMsambRow(raw: unknown): PriceTickInput {
   }
 }
 
-const MAPPERS: Record<CollectorKey, (raw: unknown) => PriceTickInput> = {
+const MAPPERS: Partial<Record<CollectorKey, (raw: unknown) => PriceTickInput>> = {
   mumbai_apmc: normalizeMumbaiRow,
 }
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
 
 export function apiUrl(path: string): string {
@@ -46,6 +47,7 @@ export type Collector = {
   portalUrl: string
   status: string
   state?: string
+  pendingReason?: string
   _count?: { priceTicks: number; incidents: number }
 }
 

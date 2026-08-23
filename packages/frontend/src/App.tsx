@@ -125,12 +125,12 @@ function Dashboard() {
             </a>
             <span className="text-border">|</span>
             <a
-              href="https://www.commodityonline.com/mandi-prices/maharashtra/mumbai"
+              href="https://apmcmumbai.org/bajarbhav/daily-bajarbhav-dates/veg"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:underline hover:text-foreground"
             >
-              CommodityOnline Source
+              Mumbai APMC Source
             </a>
           </div>
         </div>

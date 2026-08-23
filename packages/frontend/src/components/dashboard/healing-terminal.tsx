@@ -52,11 +52,101 @@ function lineFor(event: SseEvent): { text: string; className: string } | null {
   }
 }
 
+const DEMO_TRACES: Trace[] = [
+  {
+    incidentId: "demo-success-recovery-9f3b",
+    simulated: true,
+    events: [
+      {
+        id: "demo-s1",
+        type: "drift.simulated",
+        timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-success-recovery-9f3b" }
+      },
+      {
+        id: "demo-s2",
+        type: "heal.started",
+        timestamp: new Date(Date.now() - 4.5 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-success-recovery-9f3b" }
+      },
+      {
+        id: "demo-s3",
+        type: "heal.cli.started",
+        timestamp: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-success-recovery-9f3b" }
+      },
+      {
+        id: "demo-s4",
+        type: "heal.cli.completed",
+        timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-success-recovery-9f3b" }
+      },
+      {
+        id: "demo-s5",
+        type: "heal.graded",
+        timestamp: new Date(Date.now() - 2.5 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-success-recovery-9f3b", score: 0.96, approved: true }
+      },
+      {
+        id: "demo-s6",
+        type: "heal.recovered",
+        timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-success-recovery-9f3b" }
+      }
+    ]
+  },
+  {
+    incidentId: "demo-failure-fail-safe-6c2e",
+    simulated: true,
+    events: [
+      {
+        id: "demo-f1",
+        type: "drift.simulated",
+        timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-failure-fail-safe-6c2e" }
+      },
+      {
+        id: "demo-f2",
+        type: "heal.started",
+        timestamp: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-failure-fail-safe-6c2e" }
+      },
+      {
+        id: "demo-f3",
+        type: "heal.cli.started",
+        timestamp: new Date(Date.now() - 13 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-failure-fail-safe-6c2e" }
+      },
+      {
+        id: "demo-f4",
+        type: "heal.cli.completed",
+        timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-failure-fail-safe-6c2e" }
+      },
+      {
+        id: "demo-f5",
+        type: "heal.graded",
+        timestamp: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-failure-fail-safe-6c2e", score: 0.60, approved: false, hardGateFailed: "value_in_bounds" }
+      },
+      {
+        id: "demo-f6",
+        type: "heal.escalated",
+        timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+        payload: { incidentId: "demo-failure-fail-safe-6c2e", reason: "price validation bounds check failed" }
+      }
+    ]
+  }
+];
+
 export function HealingTerminal() {
   const { events, status } = useSSE({
     filter: (type) => HEAL(type),
   });
-  const traces = useMemo(() => tracesFrom(events), [events]);
+  const traces = useMemo(() => {
+    const liveTraces = tracesFrom(events);
+    return [...liveTraces, ...DEMO_TRACES];
+  }, [events]);
 
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)]">
@@ -67,30 +157,27 @@ export function HealingTerminal() {
         </span>
       </div>
       <div className="h-80 overflow-y-auto bg-background/40 p-4 font-mono text-xs leading-relaxed">
-        {traces.length === 0 ? (
-          <p className="text-muted-foreground text-center py-20">
-            Click ⚡ Simulate Drift to watch DETECT → HEAL → GRADE → RECOVERED.
-          </p>
-        ) : (
-          traces.map((trace) => (
-            <article key={trace.incidentId} className="mb-5 border-l border-border pl-3 last:mb-0">
-              <div className="mb-1 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                {trace.simulated && <span className="text-simulated">Simulated</span>}
-                <span>{trace.incidentId.slice(0, 8)}</span>
-              </div>
-              {trace.events.map((event) => {
-                const line = lineFor(event);
-                if (!line) return null;
-                return (
-                  <p key={event.id} className={`flex gap-2 ${line.className}`}>
-                    <span className="shrink-0 text-muted-foreground">{clock(event.timestamp)}</span>
-                    <span>{line.text}</span>
-                  </p>
-                );
-              })}
-            </article>
-          ))
-        )}
+        <p className="text-muted-foreground/80 mb-4 pb-3 border-b border-border/20 text-[11px] leading-normal italic select-none">
+          💡 Click "Simulate Scenario..." to watch DETECT → HEAL → GRADE → RECOVERED in real time. A successful recovery is already shown below.
+        </p>
+        {traces.map((trace) => (
+          <article key={trace.incidentId} className="mb-5 border-l border-border pl-3 last:mb-0">
+            <div className="mb-1 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              {trace.simulated && <span className="text-simulated">Simulated</span>}
+              <span>{trace.incidentId.slice(0, 8)}</span>
+            </div>
+            {trace.events.map((event) => {
+              const line = lineFor(event);
+              if (!line) return null;
+              return (
+                <p key={event.id} className={`flex gap-2 ${line.className}`}>
+                  <span className="shrink-0 text-muted-foreground">{clock(event.timestamp)}</span>
+                  <span>{line.text}</span>
+                </p>
+              );
+            })}
+          </article>
+        ))}
       </div>
     </section>
   );

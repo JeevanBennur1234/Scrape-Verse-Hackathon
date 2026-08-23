@@ -35,7 +35,7 @@ export function PriceTicker({ prices }: { prices: PriceRow[] }) {
                   : price.modalPrice - price.previousModalPrice;
               return (
                 <span key={`${price.id}-${i}`} className="flex shrink-0 items-baseline gap-2 whitespace-nowrap text-sm">
-                  <span className="text-foreground">{price.commodity}</span>
+                  <span className="text-foreground cursor-help" title={price.commodity}>{price.commodity}</span>
                   <span className="font-mono tabular-nums text-muted-foreground">
                     {formatInr(price.modalPrice)}
                   </span>

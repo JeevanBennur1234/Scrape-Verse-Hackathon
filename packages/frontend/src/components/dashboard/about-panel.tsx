@@ -31,7 +31,7 @@ export function AboutPanel() {
           <div className="space-y-2">
             <h3 className="font-serif text-sm font-semibold text-foreground">Project Authenticity</h3>
             <p className="leading-relaxed">
-              • The <strong>Mumbai Market</strong> collector (ID: <code className="text-foreground font-mono">c_mt364sxr1jxad1qpuy</code>) is <strong>fully real</strong> and live-scraped directly from CommodityOnline (a non-government market intelligence source, fully compliant with hackathon guidelines).
+              • The <strong>Mumbai Market</strong> collector (ID: <code className="text-foreground font-mono">c_mt364sxr1jxad1qpuy</code>) is <strong>fully real</strong> and live-scraped directly from the Mumbai APMC Bajarbhav board (https://apmcmumbai.org/bajarbhav/daily-bajarbhav-dates/veg).
             </p>
             <p className="leading-relaxed">
               • The stale-date correction is a <strong>genuine captured repair</strong> of an actual parser drift bug resolved automatically by our self-healing watchdog.

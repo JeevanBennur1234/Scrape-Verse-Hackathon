@@ -1,8 +1,34 @@
+import { useMemo } from "react";
 import type { IncidentRow } from "@/lib/api";
 import { Badge, statusTone } from "@/components/ui/badge";
 import { clock } from "@/lib/format";
 
+const DEMO_INCIDENT: IncidentRow = {
+  id: "demo-incident-success-9f3b",
+  collectorId: "c_mt364sxr1jxad1qpuy",
+  type: "SCHEMA_DRIFT",
+  field: "report_date",
+  symptom: "Scraper schema drift detected (stale archive date 2026-08-03 on Mumbai board)",
+  affectedRatio: 1.0,
+  status: "RECOVERED",
+  simulated: true,
+  createdAt: new Date().toISOString(),
+  collector: { name: "Mumbai Market" },
+  grades: [
+    {
+      id: "demo-grade-s1",
+      score: 0.96,
+      reason: "Grade passed: score 0.96 >= 0.80 (all validation gates passed, calling scraper approve)",
+      createdAt: new Date().toISOString()
+    }
+  ]
+};
+
 export function IncidentTimeline({ incidents }: { incidents: IncidentRow[] }) {
+  const displayIncidents = useMemo(() => {
+    return [DEMO_INCIDENT, ...incidents];
+  }, [incidents]);
+
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)]">
       <div className="border-b border-border px-4 py-3">
@@ -10,10 +36,10 @@ export function IncidentTimeline({ incidents }: { incidents: IncidentRow[] }) {
         <p className="mt-1 text-sm text-muted-foreground">Latest grades from the watchdog.</p>
       </div>
       <div className="max-h-80 space-y-2 overflow-y-auto p-3">
-        {incidents.length === 0 ? (
+        {displayIncidents.length === 0 ? (
           <p className="px-1 py-8 text-center text-sm text-muted-foreground">No incidents yet.</p>
         ) : (
-          incidents.map((incident) => {
+          displayIncidents.map((incident) => {
             const grade = incident.grades[0];
             const simulated =
               incident.simulated ||

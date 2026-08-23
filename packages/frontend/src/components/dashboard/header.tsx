@@ -17,7 +17,7 @@ type Props = {
 export function Header({ reachable, sending, notice, noticeKind, onSimulate }: Props) {
   const { status } = useSSE();
   const sseLive = status === "open";
-  const [watchdogEnabled, setWatchdogEnabled] = useState<boolean | null>(null);
+  const [watchdogEnabled, setWatchdogEnabled] = useState<boolean>(true);
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
@@ -62,17 +62,16 @@ export function Header({ reachable, sending, notice, noticeKind, onSimulate }: P
                 <span className={`size-1.5 rounded-full ${reachable ? "bg-healthy" : "bg-failed"}`} />
                 {reachable ? "API OK" : "API down"}
               </Badge>
-              {watchdogEnabled === false && (
-                <Badge tone="default" title="WATCHDOG_ENABLED is false in the backend environment. Periodic crons will not run.">
-                  WATCHDOG DISABLED
-                </Badge>
-              )}
+              <Badge tone={watchdogEnabled ? "healthy" : "default"}>
+                <span className={`size-1.5 rounded-full ${watchdogEnabled ? "bg-healthy animate-pulse" : "bg-muted"}`} />
+                {watchdogEnabled ? "WATCHDOG MONITORING" : "WATCHDOG SUSPENDED"}
+              </Badge>
               <Badge tone={sseLive ? "healthy" : status === "error" ? "failed" : "degraded"}>
                 <Radio className="size-3 animate-pulse" />
                 {sseLive ? "Live Wire" : status === "error" ? "Reconnect" : "Connecting"}
               </Badge>
             </div>
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex gap-2 w-full sm:w-auto items-start">
               <Button
                 variant="secondary"
                 onClick={() => setModalOpen(true)}
@@ -81,31 +80,36 @@ export function Header({ reachable, sending, notice, noticeKind, onSimulate }: P
                 <HelpCircle className="size-4" />
                 <span>Info</span>
               </Button>
-              <select
-                disabled={sending}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val) {
-                    onSimulate(val);
-                    e.target.value = "";
-                  }
-                }}
-                className="flex-1 sm:flex-initial h-10 min-h-[40px] px-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-md border-0 focus:outline-none cursor-pointer"
-                value=""
-              >
-                <option value="" disabled hidden>
-                  {sending ? "Replaying..." : "Simulate Scenario..."}
-                </option>
-                <option value="STALE_ARCHIVE_DATE" className="bg-card text-foreground text-xs">
-                  Stale Date (real captured bug)
-                </option>
-                <option value="NULL_PRICE_SPIKE" className="bg-card text-foreground text-xs">
-                  Null Price Spike (synthetic)
-                </option>
-                <option value="PRICE_OUTLIER_REJECTED" className="bg-card text-foreground text-xs">
-                  Extreme Outlier (synthetic — watch it get rejected)
-                </option>
-              </select>
+              <div className="flex flex-col gap-1 flex-1 sm:flex-initial">
+                <select
+                  disabled={sending}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val) {
+                      onSimulate(val);
+                      e.target.value = "";
+                    }
+                  }}
+                  className="w-full sm:w-48 h-10 min-h-[40px] px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-md border-0 focus:outline-none cursor-pointer shadow-lg shadow-blue-500/20"
+                  value=""
+                >
+                  <option value="" disabled hidden>
+                    {sending ? "Replaying..." : "Simulate Scenario..."}
+                  </option>
+                  <option value="STALE_ARCHIVE_DATE" className="bg-card text-foreground text-xs font-mono">
+                    Stale Date (real captured bug)
+                  </option>
+                  <option value="NULL_PRICE_SPIKE" className="bg-card text-foreground text-xs font-mono">
+                    Null Price Spike (synthetic)
+                  </option>
+                  <option value="PRICE_OUTLIER_REJECTED" className="bg-card text-foreground text-xs font-mono">
+                    Extreme Outlier (synthetic)
+                  </option>
+                </select>
+                <span className="text-[9px] text-muted-foreground text-center sm:text-right font-mono tracking-wide leading-none mt-0.5">
+                  ⚡ Trigger auto-healing simulation
+                </span>
+              </div>
             </div>
           </div>
         </div>

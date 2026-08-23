@@ -308,7 +308,10 @@ export function MandiTable({ prices, loading }: { prices: PriceRow[]; loading: b
                   return (
                     <tr key={price.id} className="border-b border-border/50 last:border-0 hover:bg-muted/10">
                       <td className="px-4 py-3">
-                        <div className="font-serif text-base font-medium capitalize text-foreground">
+                        <div 
+                          className="font-serif text-base font-medium capitalize text-foreground cursor-help"
+                          title={price.commodity}
+                        >
                           {price.commodity}
                         </div>
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">

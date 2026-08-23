@@ -9,24 +9,31 @@ export interface MandiCollectorConfig {
 export const MANDI_COLLECTORS = {
   mumbai_apmc: {
     collectorId: 'c_mt364sxr1jxad1qpuy',
-    name: 'Mumbai APMC Bajarbhav',
+    name: 'Mumbai Market (CommodityOnline)',
     state: 'Maharashtra',
-    sourceUrl: 'https://apmcmumbai.org/bajarbhav/daily-bajarbhav-dates/veg',
+    sourceUrl: 'https://www.commodityonline.com/mandi-prices/maharashtra/mumbai',
     rawFields: [
-      'commodity_name',
-      'arrival_qty',
+      'commodity',
+      'market',
       'min_price',
       'max_price',
-      'avg_price',
+      'modal_price',
       'report_date',
     ],
   },
   msamb: {
     collectorId: 'c_msamb_pending',
-    name: 'MSAMB APMC Price Information',
-    state: 'Maharashtra',
-    sourceUrl: 'https://www.msamb.com/ApmcDetail/APMCPriceInformation',
-    rawFields: [],
+    name: 'Bangalore Market (CommodityOnline)',
+    state: 'Karnataka',
+    sourceUrl: 'https://www.commodityonline.com/mandi-prices/karnataka/bangalore',
+    rawFields: [
+      'commodity',
+      'market',
+      'min_price',
+      'max_price',
+      'modal_price',
+      'report_date',
+    ],
   },
 } satisfies Record<string, MandiCollectorConfig>
 

@@ -126,39 +126,36 @@ function requireString(field: string, value: unknown): string {
   return value.trim()
 }
 
-// Mumbai Bajarbhav publishes "सरासरी भाव" (average price) and has no true modal-price
-// column. Mapping avg_price -> modalPrice is an INTENTIONAL decision: the average of
-// reported trades is the closest real-world analog the portal offers to Agmarknet's
-// modal (most-traded) price. Do not "fix" this mapping without replacing the data
-// source or adding a real modal field.
-const MUMBAI_MARKET_LABEL = 'Mumbai APMC - Vegetable Market (Vashi)'
-
 export function normalizeMumbaiRow(raw: unknown): PriceTickInput {
   if (typeof raw !== 'object' || raw === null) {
     throw new Error('Mumbai row is not an object')
   }
   const row = raw as Record<string, unknown>
   return {
-    commodity: requireString('commodity_name', row.commodity_name),
-    market: MUMBAI_MARKET_LABEL,
-    // See comment above: avg_price is intentionally mapped to modalPrice.
-    modalPrice: coerceNumber('avg_price', row.avg_price),
+    commodity: requireString('commodity', row.commodity),
+    market: requireString('market', row.market),
+    modalPrice: coerceNumber('modal_price', row.modal_price),
     minPrice: coerceNumber('min_price', row.min_price),
     maxPrice: coerceNumber('max_price', row.max_price),
-    arrivalQty: Math.round(coerceNumber('arrival_qty', row.arrival_qty)),
+    arrivalQty: Math.round(coerceNumber('arrival_qty', row.arrival_qty ?? 0)),
     recordedAt: parseIndianReportDate(row.report_date),
   }
 }
 
-// TODO(msamb): implement this mapper once we observe MSAMB's actual returned field
-// names from its first successful collector run. Do NOT guess field names — wire the
-// rawFields entry in mandi-registry.ts and mirror them here.
 export function normalizeMsambRow(raw: unknown): PriceTickInput {
-  const keys =
-    typeof raw === 'object' && raw !== null ? Object.keys(raw).join(', ') : typeof raw
-  throw new Error(
-    `TODO(msamb): normalizeMsambRow is a stub - MSAMB raw field names are not yet discovered (row keys seen: ${keys})`,
-  )
+  if (typeof raw !== 'object' || raw === null) {
+    throw new Error('Bangalore row is not an object')
+  }
+  const row = raw as Record<string, unknown>
+  return {
+    commodity: requireString('commodity', row.commodity),
+    market: requireString('market', row.market),
+    modalPrice: coerceNumber('modal_price', row.modal_price),
+    minPrice: coerceNumber('min_price', row.min_price),
+    maxPrice: coerceNumber('max_price', row.max_price),
+    arrivalQty: Math.round(coerceNumber('arrival_qty', row.arrival_qty ?? 0)),
+    recordedAt: parseIndianReportDate(row.report_date),
+  }
 }
 
 const MAPPERS: Record<CollectorKey, (raw: unknown) => PriceTickInput> = {

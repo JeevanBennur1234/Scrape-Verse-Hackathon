@@ -84,7 +84,6 @@ export async function seedProductionDataIfEmpty(): Promise<void> {
             recordedAt: new Date(tick.recordedAt),
           }
         }),
-        skipDuplicates: true,
       })
       ticksDone += result.count
     }

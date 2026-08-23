@@ -3,6 +3,10 @@ import { Header } from "@/components/dashboard/header";
 import { PriceTicker } from "@/components/dashboard/price-ticker";
 import { StatusCards } from "@/components/dashboard/status-cards";
 import { MandiTable } from "@/components/dashboard/mandi-table";
+import { PriceComparison } from "@/components/dashboard/price-comparison";
+import { QuickInsights } from "@/components/dashboard/quick-insights";
+import { InteractiveCharts } from "@/components/dashboard/interactive-charts";
+import { HealingPipeline } from "@/components/dashboard/healing-pipeline";
 import { HealingTerminal } from "@/components/dashboard/healing-terminal";
 import { IncidentTimeline } from "@/components/dashboard/incident-timeline";
 import { SSEProvider } from "@/hooks/sse-provider";
@@ -51,7 +55,7 @@ function Dashboard() {
       };
       if (response.status === 429) {
         setNoticeKind("error");
-        setNotice(body.error ?? "Rate limit exceeded (max 5 requests per 10 minutes). Please wait before trying again.");
+        setNotice(body.error ?? "Rate limit exceeded. Please wait before trying again.");
         return;
       }
       if (response.status === 401) {
@@ -89,10 +93,16 @@ function Dashboard() {
       <PriceTicker prices={board.prices} />
       <main className="mx-auto grid w-full max-w-6xl flex-1 gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
         <div className="flex min-w-0 flex-col gap-4">
+          <QuickInsights prices={board.prices} collectors={board.collectors} />
           <StatusCards collectors={board.collectors} prices={board.prices} loading={board.loading} />
           <MandiTable prices={board.prices} loading={board.loading} />
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+            <InteractiveCharts prices={board.prices} />
+            <PriceComparison prices={board.prices} />
+          </div>
         </div>
         <div className="flex min-w-0 flex-col gap-4">
+          <HealingPipeline />
           <HealingTerminal />
           <IncidentTimeline incidents={board.incidents} />
         </div>
@@ -111,12 +121,12 @@ function Dashboard() {
             </a>
             <span className="text-border">|</span>
             <a
-              href="https://apmcmumbai.org/bajarbhav/daily-bajarbhav-dates/veg"
+              href="https://www.commodityonline.com/mandi-prices/maharashtra/mumbai"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:underline hover:text-foreground"
             >
-              Mumbai APMC Source
+              CommodityOnline Source
             </a>
           </div>
         </div>

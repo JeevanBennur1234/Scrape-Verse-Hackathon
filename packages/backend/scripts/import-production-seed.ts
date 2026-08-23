@@ -113,7 +113,6 @@ async function main(): Promise<void> {
         arrivalQty: tick.arrivalQty,
         recordedAt: new Date(tick.recordedAt),
       })),
-      skipDuplicates: true,
     })
     ticksDone += result.count
   }

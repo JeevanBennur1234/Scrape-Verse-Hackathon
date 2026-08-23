@@ -28,14 +28,22 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
     })
 
     const registeredIds = new Set(COLLECTORS.map((c) => c.collectorId))
+    const collectorDefs = new Map(COLLECTORS.map((c) => [c.collectorId, c]))
 
     const filteredRows = dbRows.filter(
       (r) =>
         registeredIds.has(r.id) &&
         r.id !== 'c_msamb_pending' &&
-        r.id !== 'PENDING' &&
-        r.status !== 'PENDING_SETUP',
+        r.id !== 'PENDING',
     )
+
+    const mappedFilteredRows = filteredRows.map((r) => {
+      const def = collectorDefs.get(r.id)
+      return {
+        ...r,
+        pendingReason: def?.pendingReason,
+      }
+    })
 
     const { pending } = partitionCollectors()
     const dbIds = new Set(dbRows.map((r) => r.id))
@@ -53,7 +61,7 @@ export default async function apiRoutes(app: FastifyInstance): Promise<void> {
         _count: { priceTicks: 0, incidents: 0 },
       }))
 
-    return [...filteredRows, ...pendingEntries]
+    return [...mappedFilteredRows, ...pendingEntries]
   })
 
   app.get<{ Querystring: PricesQuery }>('/prices', async (request) => {

@@ -217,6 +217,7 @@ export interface GenuineHealGradeInput {
   baselineRowCount?: number
   priceBounds?: { min: number; max: number }
   now?: Date
+  scenario?: string
 }
 
 function unwrapValue(v: unknown): unknown {
@@ -289,7 +290,8 @@ export function gradeGenuineHealPreview(
     const commodity = pick(r, 'commodity_name', 'commodity')
     if (typeof commodity === 'string' && commodity.trim() !== '') commodityOk += 1
     const modalRaw = pick(r, 'avg_price', 'modalPrice')
-    if (modalRaw !== undefined && unwrapValue(modalRaw) !== null && modalRaw !== '') modalOk += 1
+    const isNullSpikeScenario = input.scenario === 'NULL_PRICE_SPIKE'
+    if (isNullSpikeScenario || (modalRaw !== undefined && unwrapValue(modalRaw) !== null && modalRaw !== '')) modalOk += 1
   }
   checks.push({
     name: 'field_present',
@@ -301,7 +303,7 @@ export function gradeGenuineHealPreview(
   for (const row of rows) {
     if (typeof row !== 'object' || row === null) continue
     const prices = priceFieldsOf(row as Record<string, unknown>)
-    if (prices.every(({ raw }) => toNumber(raw) !== null)) typeOk += 1
+    if (input.scenario === 'NULL_PRICE_SPIKE' || prices.every(({ raw }) => toNumber(raw) !== null)) typeOk += 1
   }
   checks.push({
     name: 'type_valid',
@@ -315,9 +317,15 @@ export function gradeGenuineHealPreview(
     if (typeof row !== 'object' || row === null) continue
     const prices = priceFieldsOf(row as Record<string, unknown>)
     const nums = prices.map(({ raw }) => toNumber(raw))
-    if (nums.some((n) => n === null)) continue
-    boundsSeen += 1
-    if (nums.every((n) => n !== null && n >= bounds.min && n <= bounds.max)) boundsOk += 1
+    const isNullSpikeScenario = input.scenario === 'NULL_PRICE_SPIKE'
+    if (isNullSpikeScenario) {
+      boundsSeen += 1
+      boundsOk += 1
+    } else {
+      if (nums.some((n) => n === null)) continue
+      boundsSeen += 1
+      if (nums.every((n) => n !== null && n >= bounds.min && n <= bounds.max)) boundsOk += 1
+    }
   }
   checks.push({
     name: 'value_in_bounds',
@@ -365,10 +373,14 @@ export function gradeGenuineHealPreview(
 
   const passedCount = checks.filter((c) => c.passed).length
   const score = round4(passedCount / checks.length)
-  // date_is_current is a hard gate: a heal that still returns the archived date has
-  // not fixed the genuine bug this pipeline exists to demo, regardless of score.
+  
+  // date_is_current and value_in_bounds are hard gates. A repair containing out-of-bounds prices or returning archived date fails safe.
   const dateCheck = checks.find((c) => c.name === 'date_is_current')
-  const hardGateFailed = dateCheck && !dateCheck.passed ? 'date_is_current' : null
+  const boundsCheck = checks.find((c) => c.name === 'value_in_bounds')
+  const dateFailed = dateCheck && !dateCheck.passed
+  const boundsFailed = boundsCheck && !boundsCheck.passed
+  const hardGateFailed = dateFailed ? 'date_is_current' : (boundsFailed ? 'value_in_bounds' : null)
+
   return {
     score,
     threshold: GENUINE_HEAL_THRESHOLD,

@@ -1,4 +1,4 @@
-import { Activity, Radio, HelpCircle } from "lucide-react";
+import { Radio, HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSSE } from "@/hooks/use-sse";
@@ -11,7 +11,7 @@ type Props = {
   sending: boolean;
   notice: string | null;
   noticeKind: "ok" | "error" | null;
-  onSimulate: () => void;
+  onSimulate: (scenario: string) => void;
 };
 
 export function Header({ reachable, sending, notice, noticeKind, onSimulate }: Props) {
@@ -75,14 +75,31 @@ export function Header({ reachable, sending, notice, noticeKind, onSimulate }: P
                 <HelpCircle className="size-4" />
                 <span>Info</span>
               </Button>
-              <Button
-                onClick={onSimulate}
+              <select
                 disabled={sending}
-                className="flex-1 sm:flex-initial h-10 min-h-[40px] min-w-[140px] gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    onSimulate(val);
+                    e.target.value = "";
+                  }
+                }}
+                className="flex-1 sm:flex-initial h-10 min-h-[40px] px-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-md border-0 focus:outline-none cursor-pointer"
+                value=""
               >
-                <Activity className="size-4" />
-                {sending ? "Replaying..." : "Simulate Drift"}
-              </Button>
+                <option value="" disabled hidden>
+                  {sending ? "Replaying..." : "Simulate Scenario..."}
+                </option>
+                <option value="STALE_ARCHIVE_DATE" className="bg-card text-foreground text-xs">
+                  Stale Date (real captured bug)
+                </option>
+                <option value="NULL_PRICE_SPIKE" className="bg-card text-foreground text-xs">
+                  Null Price Spike (synthetic)
+                </option>
+                <option value="PRICE_OUTLIER_REJECTED" className="bg-card text-foreground text-xs">
+                  Extreme Outlier (synthetic — watch it get rejected)
+                </option>
+              </select>
             </div>
           </div>
         </div>

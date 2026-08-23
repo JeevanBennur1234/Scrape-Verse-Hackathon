@@ -6,6 +6,7 @@ import { MandiTable } from "@/components/dashboard/mandi-table";
 import { PriceComparison } from "@/components/dashboard/price-comparison";
 import { QuickInsights } from "@/components/dashboard/quick-insights";
 import { InteractiveCharts } from "@/components/dashboard/interactive-charts";
+import { AboutPanel } from "@/components/dashboard/about-panel";
 import { HealingPipeline } from "@/components/dashboard/healing-pipeline";
 import { HealingTerminal } from "@/components/dashboard/healing-terminal";
 import { IncidentTimeline } from "@/components/dashboard/incident-timeline";
@@ -37,7 +38,7 @@ function Dashboard() {
     return () => clearTimeout(timer);
   }, [events.length, board.reload]);
 
-  const onSimulate = useCallback(async () => {
+  const onSimulate = useCallback(async (scenario: string = "STALE_ARCHIVE_DATE") => {
     if (sending) return;
     setSending(true);
     setNotice(null);
@@ -45,7 +46,7 @@ function Dashboard() {
       const response = await apiFetch("/api/simulate-drift", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ collectorKey: "mumbai_apmc" }),
+        body: JSON.stringify({ collectorKey: "mumbai_apmc", scenario }),
       });
       const body = (await response.json().catch(() => ({}))) as {
         incidentId?: string;
@@ -88,11 +89,12 @@ function Dashboard() {
         sending={sending}
         notice={notice}
         noticeKind={noticeKind}
-        onSimulate={() => void onSimulate()}
+        onSimulate={(scenario) => void onSimulate(scenario)}
       />
       <PriceTicker prices={board.prices} />
       <main className="mx-auto grid w-full max-w-6xl flex-1 gap-4 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
         <div className="flex min-w-0 flex-col gap-4">
+          <AboutPanel />
           <QuickInsights prices={board.prices} collectors={board.collectors} />
           <StatusCards collectors={board.collectors} prices={board.prices} loading={board.loading} />
           <MandiTable prices={board.prices} loading={board.loading} />

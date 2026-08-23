@@ -31,6 +31,7 @@ interface SimulateDriftBody {
   collectorKey?: string
   collectorId?: string
   key?: string
+  scenario?: string
 }
 
 interface RateLimitInfo {
@@ -141,6 +142,7 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
             collectorKey: { type: 'string', minLength: 1 },
             collectorId: { type: 'string', minLength: 1 },
             key: { type: 'string' },
+            scenario: { type: 'string' },
           },
         },
       },
@@ -160,7 +162,14 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         }
       }
 
-      const { collectorKey, collectorId } = request.body
+      const { collectorKey, collectorId, scenario = 'STALE_ARCHIVE_DATE' } = request.body
+
+      const validScenarios = ['STALE_ARCHIVE_DATE', 'NULL_PRICE_SPIKE', 'PRICE_OUTLIER_REJECTED']
+      if (!validScenarios.includes(scenario)) {
+        return reply.code(400).send({
+          error: `Invalid scenario. Valid options: ${validScenarios.join(', ')}`,
+        })
+      }
 
       let key = collectorKey
       if (!key && collectorId) {
@@ -199,27 +208,47 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         },
       })
 
+      const genuineCapture = scenario === 'STALE_ARCHIVE_DATE'
+      const syntheticScenario = !genuineCapture
+
       // Step 1: drift detected
       eventBus.publish('drift.simulated', {
         collectorId: definition.collectorId,
-        kind: SIMULATED_DRIFT_KIND,
+        kind: scenario,
         simulated: true,
+        genuineCapture,
+        syntheticScenario,
       })
       console.log(
-        `[simulate-drift] simulated drift (${SIMULATED_DRIFT_KIND}) on ${definition.collectorId}`,
+        `[simulate-drift] simulated drift (${scenario}) on ${definition.collectorId}`,
       )
       await sleep(stepDelay())
 
       // Step 2: real Incident row (DETECTED) + incident.simulated with diagnosis text
-      const diagnosis = buildStaleArchiveHealDiagnosis({ sourceUrl: definition.sourceUrl })
+      let incidentType: 'SCHEMA_DRIFT' | 'NULL_SPIKE' | 'PRICE_OUTLIER' = 'SCHEMA_DRIFT'
+      let incidentField = 'report_date'
+      let incidentSymptom = '[SIMULATED] rows carry the stale archive date 2026-08-03 instead of the current date'
+      let diagnosis = buildStaleArchiveHealDiagnosis({ sourceUrl: definition.sourceUrl })
+
+      if (scenario === 'NULL_PRICE_SPIKE') {
+        incidentType = 'NULL_SPIKE'
+        incidentField = 'modalPrice'
+        incidentSymptom = '[SIMULATED] Null rate 40.0% exceeds 25% threshold (40/100 cells null)'
+        diagnosis = 'Bright Data Scraper Studio healing rule to handle null values in modal_price fields.'
+      } else if (scenario === 'PRICE_OUTLIER_REJECTED') {
+        incidentType = 'PRICE_OUTLIER'
+        incidentField = 'modalPrice'
+        incidentSymptom = '[SIMULATED] modalPrice 500000 deviates from rolling median'
+        diagnosis = 'Bright Data Scraper Studio healing rule to validate maximum price boundaries.'
+      }
+
       const incident = await prisma.incident.create({
         data: {
           collectorId: definition.collectorId,
-          type: 'SCHEMA_DRIFT',
-          field: 'report_date',
-          symptom:
-            '[SIMULATED] rows carry the stale archive date 2026-08-03 instead of the current date',
-          affectedRatio: 1,
+          type: incidentType,
+          field: incidentField,
+          symptom: incidentSymptom,
+          affectedRatio: scenario === 'STALE_ARCHIVE_DATE' ? 1 : 0.4,
           status: 'DETECTED',
           simulated: true,
         },
@@ -229,6 +258,8 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         collectorId: definition.collectorId,
         diagnosis,
         simulated: true,
+        genuineCapture,
+        syntheticScenario,
       })
       await sleep(stepDelay())
 
@@ -242,6 +273,8 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         collectorId: definition.collectorId,
         type: incident.type,
         simulated: true,
+        genuineCapture,
+        syntheticScenario,
       })
       await sleep(stepDelay())
 
@@ -249,76 +282,135 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         incidentId: incident.id,
         collectorId: definition.collectorId,
         simulated: true,
+        genuineCapture,
+        syntheticScenario,
       })
       await sleep(stepDelay())
 
-      // Steps 4-5: real CLI heal only behind token+flag, else captured replay
+      // Steps 4-5: real CLI heal only behind token+flag, else captured replay or synthetic
       const liveCliEnabled =
+        genuineCapture &&
         Boolean(process.env.BRIGHTDATA_API_TOKEN) &&
         process.env.SIMULATE_USE_REAL_CLI === 'true'
 
-      let source: 'live-cli' | 'captured-replay' = 'captured-replay'
+      let source: 'live-cli' | 'captured-replay' | 'synthetic-generator' = 'captured-replay'
       let previewResult: unknown | undefined
       let liveFailureReason = ''
 
-      if (liveCliEnabled) {
-        try {
-          const result = await withTimeout(
-            runBdataHeal(definition.collectorId, diagnosis, {
-              timeoutSeconds: LIVE_CLI_TIMEOUT_SECONDS,
-            }),
-            LIVE_CLI_TIMEOUT_MS,
-          )
-          const preview = extractPreviewResult(result.parsed)
-          if (!preview) throw new Error('live CLI result contained no preview_result')
-          previewResult = preview
-          source = 'live-cli'
-          console.log('[simulate-drift] using LIVE CLI result')
-        } catch (err) {
-          liveFailureReason = errorMessage(err)
-        }
-      } else {
-        liveFailureReason = 'BRIGHTDATA_API_TOKEN missing or SIMULATE_USE_REAL_CLI not "true"'
-      }
-
-      if (!previewResult) {
+      if (syntheticScenario) {
+        source = 'synthetic-generator'
         try {
           const captured = await loadCapturedEnvelope()
           const preview = extractPreviewResult(captured)
-          if (!preview) throw new Error('captured artifact has no preview_result')
-          previewResult = preview
+          const baseRecords = extractRecords(preview)
+
+          if (scenario === 'NULL_PRICE_SPIKE') {
+            // Null Price Spike scenario: 40% of rows have null modalPrice/avg_price
+            const nullCount = Math.floor(baseRecords.length * 0.4)
+            const syntheticRecords = baseRecords.map((record, index) => {
+              if (index < nullCount && typeof record === 'object' && record !== null) {
+                return {
+                  ...(record as Record<string, unknown>),
+                  modal_price: null,
+                  modalPrice: null,
+                  avg_price: null,
+                }
+              }
+              return record
+            })
+            previewResult = {
+              status: 'success',
+              preview_result: syntheticRecords,
+            }
+          } else if (scenario === 'PRICE_OUTLIER_REJECTED') {
+            // Price Outlier scenario: first commodity price is set to 500,000 (implausible outlier)
+            const syntheticRecords = baseRecords.map((record, index) => {
+              if (index === 0 && typeof record === 'object' && record !== null) {
+                return {
+                  ...(record as Record<string, unknown>),
+                  modal_price: 500000,
+                  modalPrice: 500000,
+                  avg_price: 500000,
+                  min_price: 480000,
+                  minPrice: 480000,
+                  max_price: 520000,
+                  maxPrice: 520000,
+                }
+              }
+              return record
+            })
+            previewResult = {
+              status: 'success',
+              preview_result: syntheticRecords,
+            }
+          }
         } catch (err) {
-          const message = errorMessage(err)
-          console.error(`[simulate-drift] no preview available at all: ${message}`)
-
-          eventBus.publish('heal.cli.failed', {
-            incidentId: incident.id,
-            error: message,
-            simulated: true,
-          })
-          await sleep(stepDelay())
-
-          await prisma.incident.update({
-            where: { id: incident.id },
-            data: { status: 'ESCALATED' },
-          })
-          eventBus.publish('heal.escalated', {
-            incidentId: incident.id,
-            reason: 'no_preview_available',
-            detail: `live call unavailable (${liveFailureReason}); replay artifact unusable: ${message}`,
-            simulated: true,
-          })
-          return reply.code(409).send({
-            simulated: true,
-            incidentId: incident.id,
-            outcome: 'ESCALATED',
-            error:
-              'No heal preview available: live CLI disabled/failed and seed-data/genuine-heal-mumbai.json is missing or unusable.',
-          })
+          console.error(`[simulate-drift] failed to build synthetic preview: ${errorMessage(err)}`)
         }
-        console.log(
-          `[simulate-drift] using CAPTURED replay (no live key / flag off / live call failed: ${liveFailureReason})`,
-        )
+      } else {
+        if (liveCliEnabled) {
+          try {
+            const result = await withTimeout(
+              runBdataHeal(definition.collectorId, diagnosis, {
+                timeoutSeconds: LIVE_CLI_TIMEOUT_SECONDS,
+              }),
+              LIVE_CLI_TIMEOUT_MS,
+            )
+            const preview = extractPreviewResult(result.parsed)
+            if (!preview) throw new Error('live CLI result contained no preview_result')
+            previewResult = preview
+            source = 'live-cli'
+            console.log('[simulate-drift] using LIVE CLI result')
+          } catch (err) {
+            liveFailureReason = errorMessage(err)
+          }
+        } else {
+          liveFailureReason = 'BRIGHTDATA_API_TOKEN missing or SIMULATE_USE_REAL_CLI not "true"'
+        }
+
+        if (!previewResult) {
+          try {
+            const captured = await loadCapturedEnvelope()
+            const preview = extractPreviewResult(captured)
+            if (!preview) throw new Error('captured artifact has no preview_result')
+            previewResult = preview
+          } catch (err) {
+            const message = errorMessage(err)
+            console.error(`[simulate-drift] no preview available at all: ${message}`)
+
+            eventBus.publish('heal.cli.failed', {
+              incidentId: incident.id,
+              error: message,
+              simulated: true,
+              genuineCapture,
+              syntheticScenario,
+            })
+            await sleep(stepDelay())
+
+            await prisma.incident.update({
+              where: { id: incident.id },
+              data: { status: 'ESCALATED' },
+            })
+            eventBus.publish('heal.escalated', {
+              incidentId: incident.id,
+              reason: 'no_preview_available',
+              detail: `live call unavailable (${liveFailureReason}); replay artifact unusable: ${message}`,
+              simulated: true,
+              genuineCapture,
+              syntheticScenario,
+            })
+            return reply.code(409).send({
+              simulated: true,
+              incidentId: incident.id,
+              outcome: 'ESCALATED',
+              error:
+                'No heal preview available: live CLI disabled/failed and seed-data/genuine-heal-mumbai.json is missing or unusable.',
+            })
+          }
+          console.log(
+            `[simulate-drift] using CAPTURED replay (no live key / flag off / live call failed: ${liveFailureReason})`,
+          )
+        }
       }
 
       eventBus.publish('heal.cli.completed', {
@@ -327,13 +419,15 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         output: JSON.stringify(previewResult),
         parsed: previewResult,
         simulated: true,
+        genuineCapture,
+        syntheticScenario,
       })
       await sleep(stepDelay())
 
       // Step 6: GRADED — same grader as genuine heals, full GradeReport emitted
       const records = extractRecords(previewResult)
       const rows = records.flatMap((record) => expandRows(definition.key, record))
-      const report: GenuineHealGradeReport = gradeGenuineHealPreview({ rows })
+      const report: GenuineHealGradeReport = gradeGenuineHealPreview({ rows, scenario })
 
       const persistedGrade = await prisma.grade.create({
         data: {
@@ -360,6 +454,8 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         hardGateFailed: report.hardGateFailed,
         checks: report.checks,
         simulated: true,
+        genuineCapture,
+        syntheticScenario,
       })
       await sleep(stepDelay())
 
@@ -378,6 +474,8 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
           approvedAt: new Date().toISOString(),
           approvalSkipped: 'simulated - CLI approve not re-invoked',
           simulated: true,
+          genuineCapture,
+          syntheticScenario,
         })
         return reply.code(200).send({
           simulated: true,
@@ -399,6 +497,8 @@ export default async function simulateRoutes(app: FastifyInstance): Promise<void
         reason: 'grade_failed',
         report,
         simulated: true,
+        genuineCapture,
+        syntheticScenario,
       })
       return reply.code(200).send({
         simulated: true,

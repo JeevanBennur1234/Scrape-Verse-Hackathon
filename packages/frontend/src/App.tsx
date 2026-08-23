@@ -97,8 +97,8 @@ function Dashboard() {
           <StatusCards collectors={board.collectors} prices={board.prices} loading={board.loading} />
           <MandiTable prices={board.prices} loading={board.loading} />
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-            <InteractiveCharts prices={board.prices} />
-            <PriceComparison prices={board.prices} />
+            <InteractiveCharts prices={board.prices} loading={board.loading} />
+            <PriceComparison prices={board.prices} loading={board.loading} />
           </div>
         </div>
         <div className="flex min-w-0 flex-col gap-4">

@@ -1,8 +1,28 @@
 import { useState, useMemo, useRef } from "react";
 import type { PriceRow } from "@/lib/api";
 import { formatInr } from "@/lib/format";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
+// Monotone-like bezier curve path generator for line smoothness
+function getBezierPath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i];
+    const p1 = points[i + 1];
+    // Smooth control points
+    const cp1x = p0.x + (p1.x - p0.x) / 3;
+    const cp1y = p0.y;
+    const cp2x = p0.x + 2 * (p1.x - p0.x) / 3;
+    const cp2y = p1.y;
+    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
+  }
+  return d;
+}
+
+export function InteractiveCharts({ prices, loading }: { prices: PriceRow[]; loading: boolean }) {
   // 1. Get unique commodity list
   const commodities = useMemo(() => {
     const set = new Set<string>();
@@ -49,9 +69,9 @@ export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
   // SVG dimensions
   const width = 500;
   const height = 220;
-  const paddingLeft = 45;
+  const paddingLeft = 55; // Expanded to fit currency symbols
   const paddingRight = 15;
-  const paddingTop = 15;
+  const paddingTop = 20;
   const paddingBottom = 30;
 
   const chartWidth = width - paddingLeft - paddingRight;
@@ -61,8 +81,18 @@ export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
   const scales = useMemo(() => {
     if (chartData.length === 0) return null;
     const prices = chartData.map((d) => d.avgPrice);
-    const minVal = Math.min(...prices) * 0.95; // 5% cushion below
-    const maxVal = Math.max(...prices) * 1.05; // 5% cushion above
+    let minVal = Math.min(...prices);
+    let maxVal = Math.max(...prices);
+    
+    // Cushion logic to prevent flattening at boundaries
+    if (minVal === maxVal) {
+      minVal = Math.max(0, minVal - 500);
+      maxVal = maxVal + 500;
+    } else {
+      const diff = maxVal - minVal;
+      minVal = Math.max(0, minVal - diff * 0.1);
+      maxVal = maxVal + diff * 0.1;
+    }
     const valueRange = maxVal - minVal || 1;
 
     return {
@@ -84,23 +114,24 @@ export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
     return paddingTop + chartHeight - ratio * chartHeight;
   };
 
-  // SVG Line path builder
-  const linePath = useMemo(() => {
-    if (chartData.length === 0) return "";
-    return chartData
-      .map((d, i) => `${i === 0 ? "M" : "L"} ${getX(i)} ${getY(d.avgPrice)}`)
-      .join(" ");
+  // Convert chartData to points array
+  const points = useMemo(() => {
+    return chartData.map((d, i) => ({ x: getX(i), y: getY(d.avgPrice) }));
   }, [chartData, scales]);
+
+  // Smooth Bezier line path
+  const linePath = useMemo(() => {
+    return getBezierPath(points);
+  }, [points]);
 
   // Area path builder for gradients
   const areaPath = useMemo(() => {
-    if (chartData.length === 0) return "";
-    const line = linePath;
-    const lastX = getX(chartData.length - 1);
-    const firstX = getX(0);
+    if (points.length === 0) return "";
+    const lastX = points[points.length - 1].x;
+    const firstX = points[0].x;
     const bottomY = height - paddingBottom;
-    return `${line} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
-  }, [chartData, linePath]);
+    return `${linePath} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
+  }, [points, linePath]);
 
   // Interactive Hover state
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -147,12 +178,38 @@ export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
     return arr;
   }, [scales]);
 
+  if (loading) {
+    return (
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)] p-4 flex flex-col justify-between h-[340px]">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3 mb-4">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-60" />
+          </div>
+          <Skeleton className="h-8 w-24" />
+        </div>
+        <div className="flex-1 flex items-end gap-2 px-6 pb-6">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-44 w-full" />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-panel)] p-4 flex flex-col justify-between">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3 mb-4">
         <div>
           <h2 className="font-serif text-xl font-medium">Price Spot Trends</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Average daily wholesale rates historical flow</p>
+          <div className="flex items-center gap-1.5 mt-1.5 text-[10px] font-mono text-muted-foreground">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+            <span>Average Price (₹/Quintal)</span>
+          </div>
         </div>
         <select
           value={activeCommodity}
@@ -182,12 +239,12 @@ export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
           >
             <defs>
               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
                 <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
               </linearGradient>
             </defs>
 
-            {/* Gridlines */}
+            {/* Gridlines & Y-Axis Labels */}
             {gridlines.map((val, i) => {
               const y = getY(val);
               return (
@@ -200,23 +257,21 @@ export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
                     strokeDasharray="4 4"
                     strokeWidth="1"
                   />
-                  {/* Y Axis Label */}
                   <text
                     x={paddingLeft - 8}
-                    y={y + 4}
+                    y={y + 3.5}
                     className="fill-muted-foreground font-mono text-[9px] text-right"
                     textAnchor="end"
                     stroke="none"
                   >
-                    {Math.round(val)}
+                    ₹{Math.round(val).toLocaleString("en-IN")}
                   </text>
                 </g>
               );
             })}
 
-            {/* X Axis Labels */}
+            {/* X Axis Labels with boundary protection */}
             {chartData.map((d, i) => {
-              // Only draw every Nth label if there are too many, or just 1st, mid, last
               const isLabelVisible =
                 chartData.length < 8 ||
                 i === 0 ||
@@ -225,13 +280,20 @@ export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
 
               if (!isLabelVisible) return null;
 
+              const labelAnchor =
+                i === 0
+                  ? "start"
+                  : i === chartData.length - 1
+                  ? "end"
+                  : "middle";
+
               return (
                 <text
                   key={i}
                   x={getX(i)}
                   y={height - 10}
                   className="fill-muted-foreground font-mono text-[9px]"
-                  textAnchor="middle"
+                  textAnchor={labelAnchor}
                 >
                   {d.displayDate}
                 </text>
@@ -241,7 +303,7 @@ export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
             {/* Gradient Area under line */}
             <path d={areaPath} fill="url(#chartGradient)" />
 
-            {/* Trend line */}
+            {/* Trend line (Smooth curve) */}
             <path
               d={linePath}
               className="stroke-blue-500"
@@ -257,7 +319,7 @@ export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
                 cx={getX(i)}
                 cy={getY(d.avgPrice)}
                 r="3.5"
-                className="fill-background stroke-blue-500 stroke-[2px] transition-all hover:r-5 cursor-pointer"
+                className="fill-background stroke-blue-500 stroke-[2px] transition-all cursor-pointer"
               />
             ))}
 
@@ -288,15 +350,15 @@ export function InteractiveCharts({ prices }: { prices: PriceRow[] }) {
           {/* Interactive Tooltip Card overlay (HTML overlay) */}
           {hoverIndex !== null && chartData[hoverIndex] && (
             <div
-              className="absolute bg-card border border-border px-2.5 py-1.5 rounded-lg shadow-md pointer-events-none text-[11px] font-mono leading-none z-10"
+              className="absolute bg-card/90 backdrop-blur-sm border border-border px-3 py-2 rounded-lg shadow-xl pointer-events-none text-xs font-mono z-20 transition-all duration-150"
               style={{
                 left: `${(tooltipPos.x / width) * 100}%`,
-                top: `${(tooltipPos.y / height) * 100 - 22}%`,
-                transform: "translate(-50%, -100%)",
+                top: `${(tooltipPos.y / height) * 100}%`,
+                transform: "translate(-50%, -115%)",
               }}
             >
-              <div className="text-muted-foreground mb-1">{chartData[hoverIndex].date}</div>
-              <div className="font-bold text-foreground">
+              <div className="text-[10px] text-muted-foreground mb-0.5">{chartData[hoverIndex].date}</div>
+              <div className="font-bold text-[var(--color-healthy)]">
                 Avg: {formatInr(chartData[hoverIndex].avgPrice)}/Q
               </div>
             </div>

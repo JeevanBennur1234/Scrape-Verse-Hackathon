@@ -10,7 +10,7 @@ MandiPulse is a wholesale agricultural intelligence platform equipped with autom
 
 * **Live Demo**: [https://scrape-verse-hackathon-frontend-88s.vercel.app/](https://scrape-verse-hackathon-frontend-88s.vercel.app/)
 * **GitHub Repository**: [https://github.com/JeevanBennur1234/Scrape-Verse-Hackathon](https://github.com/JeevanBennur1234/Scrape-Verse-Hackathon)
-* **Demo Video**: [Coming soon / YouTube link]
+* **Demo Video**: [https://youtu.be/GYYvRvGz_UM?feature=shared](https://youtu.be/GYYvRvGz_UM?feature=shared)
 
 ---
 
